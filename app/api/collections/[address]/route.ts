@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabaseAdmin';
+import { supabaseAdmin as supabase } from '@/lib/supabase-admin';
 import { NextResponse, NextRequest } from 'next/server';
 
 // helper to avoid repeating the long type
