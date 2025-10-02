@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import AuthenticatedGeneratePage from "./authenticated";
 import FreeGeneratePage from "../free-generate/page";
 
-export default function GeneratePage() {
+function GeneratePageContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const searchParams = useSearchParams();
@@ -57,4 +57,19 @@ export default function GeneratePage() {
 
   // If not authenticated, show the free generate page
   return <FreeGeneratePage isSeriesFlow={isSeriesFlow} />;
+}
+
+export default function GeneratePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-cyber-dark to-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-cyber-cyan mx-auto mb-4" />
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    }>
+      <GeneratePageContent />
+    </Suspense>
+  );
 }
