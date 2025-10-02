@@ -39,10 +39,8 @@ interface UploadStatus {
   message: string
 }
 
-function UploadPageContent({ isSeriesFlow = false }: { isSeriesFlow?: boolean } = {}) {
+function UploadPageContent({ isSeriesFlow = false, seriesId }: { isSeriesFlow?: boolean, seriesId?: string | null } = {}) {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const seriesId = searchParams.get('seriesId')
   
   /* ────────────────────────────── state ────────────────────────────── */
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
@@ -1270,16 +1268,21 @@ artwork={uploadedImageUrl || (isUploading ? null : uploadedImage)}
 }
 
 export default function UploadPage() {
-  const searchParams = useSearchParams()
-  const isSeriesFlow = searchParams.get('series') === 'true'
-
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-cyber-black pt-24 px-6 flex items-center justify-center">
         <div className="text-white">Loading...</div>
       </div>
     }>
-      <UploadPageContent isSeriesFlow={isSeriesFlow} />
+      <UploadPageWrapper />
     </Suspense>
   )
+}
+
+function UploadPageWrapper() {
+  const searchParams = useSearchParams()
+  const isSeriesFlow = searchParams.get('series') === 'true'
+  const seriesId = searchParams.get('seriesId')
+
+  return <UploadPageContent isSeriesFlow={isSeriesFlow} seriesId={seriesId} />
 }
