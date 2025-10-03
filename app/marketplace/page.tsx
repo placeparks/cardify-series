@@ -179,6 +179,15 @@ function MarketplaceCard({
               })}
             </div>
           )}
+          {/* Featured Badge */}
+          {listing.featured && (
+            <div className="flex justify-start">
+              <Badge className="bg-yellow-500/90 text-black border-yellow-400 border-2 font-bold text-xs px-2 py-1 shadow-lg flex items-center gap-1">
+                <Star className="w-3 h-3 fill-black" />
+                FEATURED
+              </Badge>
+            </div>
+          )}
 
           {/* Seller info - avatar + name */}
           <Link
@@ -426,6 +435,7 @@ function MarketplaceContent() {
         )
       `, { count: 'exact' })
       .eq('status', 'active')
+      // Include both featured and non-featured cards, but order featured first
 
     if (q.trim()) {
       const like = `%${q.trim()}%`
@@ -440,7 +450,13 @@ function MarketplaceContent() {
     // For client-side sorting (most_sold, most_viewed), fetch all results
     // For server-side sorting (most_recent), apply pagination and order
     if (sortBy === 'most_recent') {
-      query = query.order('created_at', { ascending: false }).range(from, to)
+      query = query
+        .order('featured', { ascending: false }) // Featured cards first
+        .order('created_at', { ascending: false }) // Then by creation date
+        .range(from, to)
+    } else {
+      // For client-side sorting, still order featured first
+      query = query.order('featured', { ascending: false })
     }
 
     const { data, error, count } = await query
@@ -488,8 +504,13 @@ function MarketplaceContent() {
         const { saleCounts } = await response.json()
         
         
-        // Sort by sale count
+        // Sort by sale count (but keep featured cards first)
         rows = rows.sort((a, b) => {
+          // Featured cards always first
+          if (a.featured && !b.featured) return -1
+          if (!a.featured && b.featured) return 1
+          
+          // Then sort by sale count
           const aCount = saleCounts[a.asset_id || ''] || 0
           const bCount = saleCounts[b.asset_id || ''] || 0
           return bCount - aCount // Descending order
@@ -518,8 +539,13 @@ function MarketplaceContent() {
         const { viewCounts } = await response.json()
         
         
-        // Sort by view count
+        // Sort by view count (but keep featured cards first)
         rows = rows.sort((a, b) => {
+          // Featured cards always first
+          if (a.featured && !b.featured) return -1
+          if (!a.featured && b.featured) return 1
+          
+          // Then sort by view count
           const aCount = viewCounts[a.asset_id || ''] || 0
           const bCount = viewCounts[b.asset_id || ''] || 0
           return bCount - aCount // Descending order
