@@ -1375,7 +1375,8 @@ useEffect(() => {
       setUid(null)
       setAvatarUrl(null)
       setAssets([])
-      setHasMore(false)
+      setHasMoreGenerations(false)
+      setHasMoreUploads(false)
       setLoadingAssets(false)
       setLoadingAuth(false)
       setDisplayName("")
@@ -1468,12 +1469,17 @@ const deduped = useMemo(() => {
 }, [assets]);
 
 const uploads = useMemo(
-  () => deduped.filter((a) => !a.isGenerated && a.asset_type === "uploaded"),
+  () => deduped.filter((a) => !a.isGenerated && a.asset_type === "uploaded" && !a.featured),
   [deduped],
 );
 
 const generations = useMemo(
-  () => deduped.filter((a) => a.isGenerated || a.asset_type === "generated"),
+  () => deduped.filter((a) => (a.isGenerated || a.asset_type === "generated") && !a.featured),
+  [deduped],
+);
+
+const featuredCards = useMemo(
+  () => deduped.filter((a) => a.featured),
   [deduped],
 );
 
@@ -2296,24 +2302,34 @@ return (
       <Tabs defaultValue="cards" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="relative p-1 bg-cyber-dark/60 border border-cyber-cyan/30 rounded-lg overflow-hidden mb-4 sm:mb-8">
           <div
-            className="absolute top-1 left-1 h-[calc(100%-8px)] w-[calc(25%-5px)] bg-cyber-cyan rounded transition-transform duration-300 ease-in-out"
+            className="absolute top-1 left-1 h-[calc(100%-8px)] w-[calc(20%-4px)] bg-cyber-cyan rounded transition-transform duration-300 ease-in-out"
             style={{
               transform: activeTab === "cards" 
                 ? "translateX(0)" 
+                : activeTab === "featured"
+                ? "translateX(calc(100% + 2px))"
                 : activeTab === "purchases"
-                ? "translateX(calc(100% + 4px))"
+                ? "translateX(calc(200% + 4px))"
                 : activeTab === "transactions"
-                ? "translateX(calc(200% + 8px))"
-                : "translateX(calc(300% + 12px))"
+                ? "translateX(calc(300% + 6px))"
+                : "translateX(calc(400% + 8px))"
             }}
           />
-          <TabsList className="relative grid w-full grid-cols-4 bg-transparent border-0 p-0 h-12 sm:h-auto">
+          <TabsList className="relative grid w-full grid-cols-5 bg-transparent border-0 p-0 h-12 sm:h-auto">
             <TabsTrigger 
               value="cards" 
               className="relative z-10 data-[state=active]:bg-transparent data-[state=active]:text-cyber-black data-[state=inactive]:text-gray-400 data-[state=inactive]:hover:text-gray-300 transition-colors text-xs sm:text-sm px-2 sm:px-4 py-2 font-semibold"
             >
               <span className="hidden sm:inline">My Cards</span>
               <span className="sm:hidden">Cards</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="featured" 
+              className="relative z-10 data-[state=active]:bg-transparent data-[state=active]:text-cyber-black data-[state=inactive]:text-gray-400 data-[state=inactive]:hover:text-gray-300 transition-colors text-xs sm:text-sm px-2 sm:px-4 py-2 font-semibold"
+            >
+              <Star className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Featured</span>
+              <span className="sm:hidden">Featured</span>
             </TabsTrigger>
             <TabsTrigger 
               value="purchases" 
@@ -2979,6 +2995,123 @@ return (
       </section>
         </TabsContent>
 
+        <TabsContent value="featured" className="space-y-8">
+          {/* ───────────────────────── Featured Cards ───────────────────────── */}
+          <section className="mb-8">
+            <div className="flex items-end justify-between mb-3 sm:mb-4">
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-wider">Featured Cards</h2>
+              <div className="text-xs text-gray-400">
+                {featuredCards.length > 0 && (
+                  <span className="hidden sm:inline">
+                    {featuredCards.length} featured card{featuredCards.length > 1 && "s"}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Featured Cards Grid */}
+            {loadingAssets ? (
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="aspect-[3/4] bg-cyber-dark/40 border border-cyber-cyan/20 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : featuredCards.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 mx-auto mb-4 bg-cyber-dark/40 border border-cyber-cyan/20 rounded-lg flex items-center justify-center">
+                  <Star className="w-8 h-8 text-cyber-cyan/40" />
+                </div>
+                <h3 className="text-lg font-semibold text-white mb-2">No Featured Cards</h3>
+                <p className="text-gray-400 text-sm mb-4">
+                  You don't have any featured cards yet. Featured cards are special cards that get highlighted in the marketplace.
+                </p>
+                <Link href="/generate" className="inline-flex items-center gap-2 px-4 py-2 bg-cyber-cyan text-cyber-black rounded-lg hover:bg-cyber-cyan/90 transition-colors">
+                  <Sparkles className="w-4 h-4" />
+                  Create Featured Card
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                {featuredCards.map((a, index) => {
+                  const existing = listingBySource[a.id]
+                  const listed = !!existing && existing.status === "active"
+                  return (
+                    <div key={a.id} className="group relative">
+                      <button
+                        onClick={() => {
+                          setLightboxIndex(index)
+                          setLightboxOpen(true)
+                        }}
+                        className="w-full aspect-[3/4] relative overflow-hidden rounded-lg border-2 border-cyber-cyan/30 hover:border-cyber-cyan transition-colors duration-300 bg-cyber-dark/40"
+                      >
+                        <Image
+                          src={a.public_url}
+                          alt={getCleanGenerationTitle(a.file_name)}
+                          fill
+                          className="object-cover transition-transform duration-300 group-hover:scale-105"
+                          onError={(e) =>
+                            ((e.currentTarget as HTMLImageElement).src = PLACEHOLDER)
+                          }
+                        />
+                        {/* Featured Badge - Always visible for featured cards */}
+                        <div className="absolute top-2 left-2 z-10 pointer-events-none">
+                          <Badge className="bg-yellow-500/90 text-black border-yellow-400 border-2 font-bold text-xs px-2 py-1 shadow-lg flex items-center gap-1">
+                            <Star className="w-3 h-3 fill-black" />
+                            FEATURED
+                          </Badge>
+                        </div>
+                        {/* Hover overlay with gradient and view text */}
+                        <div className="absolute inset-0 pointer-events-none">
+                          {/* Background gradient overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-cyber-dark/95 via-cyber-dark/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                          {/* VIEW text */}
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-cyber-cyan text-lg font-bold tracking-wider opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-90 group-hover:scale-100">
+                              VIEW
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+
+                      {/* Share button - only for listed items */}
+                      {listed && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigator.clipboard.writeText(`${window.location.origin}/card/${existing.id}`)
+                            toast({
+                              title: "Link copied!",
+                              description: "Share this card with others",
+                            })
+                          }}
+                          className="absolute top-2 right-2 w-8 h-8 bg-cyber-dark/80 hover:bg-cyber-dark border border-cyber-cyan/50 hover:border-cyber-cyan rounded-lg flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
+                          title="Copy share link"
+                        >
+                          <Link2 className="w-4 h-4 text-cyber-cyan" />
+                        </button>
+                      )}
+
+                      {/* Card info */}
+                      <div className="mt-2 space-y-1">
+                        <h3 className="text-sm font-medium text-white truncate">
+                          {getCleanGenerationTitle(a.file_name)}
+                        </h3>
+                        <div className="flex items-center justify-between text-xs text-gray-400">
+                          <span className="capitalize">{a.asset_type}</span>
+                          {listed && (
+                            <span className="text-cyber-green font-medium">Listed</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        </TabsContent>
+
         <TabsContent value="purchases" className="space-y-8">
           {/* Purchases */}
           <section className="mb-8">
@@ -3423,6 +3556,20 @@ return (
     {/* Lightbox – My Generations */}
     <Lightbox
       images={generations.map((a) => ({
+        id: a.id,
+        url: a.public_url,
+        title: getCleanGenerationTitle(a.file_name),
+        size: a.file_size,
+        mimeType: a.mime_type,
+      }))}
+      initialIndex={lightboxIndex}
+      isOpen={lightboxOpen}
+      onClose={() => setLightboxOpen(false)}
+    />
+
+    {/* Lightbox – Featured Cards */}
+    <Lightbox
+      images={featuredCards.map((a) => ({
         id: a.id,
         url: a.public_url,
         title: getCleanGenerationTitle(a.file_name),
