@@ -185,16 +185,29 @@ function MarketplaceCard({
               id: listing.id,
               title: listing.title,
               featured: listing.featured,
-              featuredType: typeof listing.featured
+              featuredType: typeof listing.featured,
+              featuredStrict: listing.featured === true,
+              featuredTruthy: !!listing.featured
             })
-            return listing.featured && (
-              <div className="flex justify-start">
-                <Badge className="bg-yellow-500/90 text-black border-yellow-400 border-2 font-bold text-xs px-2 py-1 shadow-lg flex items-center gap-1">
-                  <Star className="w-3 h-3 fill-black" />
-                  FEATURED
-                </Badge>
-              </div>
-            )
+            
+            if (listing.featured === true) {
+              console.log('🔍 Featured badge should show!')
+              return (
+                <div className="flex justify-start">
+                  <Badge className="bg-yellow-500/90 text-black border-yellow-400 border-2 font-bold text-xs px-2 py-1 shadow-lg flex items-center gap-1">
+                    <Star className="w-3 h-3 fill-black" />
+                    FEATURED
+                  </Badge>
+                </div>
+              )
+            } else {
+              console.log('🔍 Featured badge NOT showing because:', {
+                featured: listing.featured,
+                isTrue: listing.featured === true,
+                isTruthy: !!listing.featured
+              })
+              return null
+            }
           })()}
           {/* Debug: Show featured status */}
           {process.env.NODE_ENV === 'development' && (
@@ -510,6 +523,7 @@ function MarketplaceContent() {
       is_active: item.status === 'active',
       created_at: item.created_at,
       categories: item.categories || [],
+      featured: item.featured || false, // Add the featured field!
       asset_id: item.asset_id
     }))
 
