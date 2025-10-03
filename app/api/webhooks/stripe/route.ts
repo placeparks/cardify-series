@@ -2282,99 +2282,18 @@ async function handleSingleMarketplaceOrder(session: Stripe.Checkout.Session, co
       throw error;
     }
 
-    // Update series supply for featured cards (physical cards)
-    if (quantity > 0) {
-      // First get the asset_id from the marketplace listing
-      const { data: listingData } = await supabase
-        .from('marketplace_listings')
-        .select('asset_id')
-        .eq('id', listingId)
-        .single();
-      
-      if (!listingData?.asset_id) {
-        logEvent({
-          level: LogLevel.INFO,
-          message: 'No asset_id found for marketplace listing',
-          sessionId: session.id,
-          data: { listingId }
-        }, correlationId);
-        return;
-      }
-      
-      // Get the series_id for this asset
-      const { data: assetData } = await supabase
-        .from('user_assets')
-        .select('source_id, asset_type')
-        .eq('id', listingData.asset_id)
-        .single();
-      
-      if (assetData) {
-        let seriesId = null;
-        
-        // Get series_id from the source table
-        if (assetData.asset_type === 'generated') {
-          const { data: generatedData } = await supabase
-            .from('generated_images')
-            .select('series_id')
-            .eq('id', assetData.source_id)
-            .single();
-          seriesId = generatedData?.series_id;
-        } else if (assetData.asset_type === 'uploaded') {
-          const { data: uploadedData } = await supabase
-            .from('uploaded_images')
-            .select('series_id')
-            .eq('id', assetData.source_id)
-            .single();
-          seriesId = uploadedData?.series_id;
-        }
-        
-        // Update series supply if this is a featured card
-        if (seriesId) {
-          logEvent({
-            level: LogLevel.INFO,
-            message: 'Updating series supply for featured card',
-            sessionId: session.id,
-            data: { 
-              seriesId,
-              quantity,
-              assetId: listingData.asset_id
-            }
-          }, correlationId);
-          
-          const { error: supplyError } = await supabase.rpc('decrement_series_supply', {
-            series_id: seriesId,
-            quantity: quantity
-          });
-          
-          if (supplyError) {
-            logError(
-              ErrorCategory.DATABASE,
-              'Failed to update series supply',
-              supplyError,
-              correlationId,
-              { seriesId, quantity }
-            );
-          } else {
-            logEvent({
-              level: LogLevel.INFO,
-              message: 'Updated series supply',
-              sessionId: session.id,
-              data: { seriesId, quantity }
-            }, correlationId);
-          }
-        } else {
-          logEvent({
-            level: LogLevel.INFO,
-            message: 'No series_id found for asset - not a featured card',
-            sessionId: session.id,
-            data: { 
-              assetId: listingData.asset_id,
-              assetType: assetData?.asset_type
-            }
-          }, correlationId);
-        }
-      }
-    }
+    // Note: Series supply decrement is now handled automatically by database trigger
+    // (handle_quantity_purchase trigger on marketplace_transactions table)
+    // The trigger will:
+    // 1. Create asset_buyers records
+    // 2. Decrement series supply if applicable
+    // 3. Update series status when sold out
+    logEvent({
+      level: LogLevel.INFO,
+      message: 'Transaction created - supply decrement will be handled by database trigger',
+      sessionId: session.id,
+      data: { quantity, listingId }
+    }, correlationId);
 
     // Keep listing active for multiple purchases (digital marketplace)
     // No need to update listing status to 'sold' since multiple users can buy the same card
