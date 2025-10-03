@@ -224,7 +224,7 @@ function MarketplaceCard({
 
         {/* Action buttons - pushed to bottom */}
         <div className="mt-auto pt-3 space-y-2">
-          {isSeller ? (
+          {isSeller && !listing.featured ? (
             <Button
               variant="destructive"
               size="sm"
@@ -1162,7 +1162,7 @@ const handleBuy = useCallback(
                   >
                     <Link2 className="w-4 h-4 text-cyber-cyan group-hover:text-cyber-pink transition-colors" />
                   </button>
-                  {uid === selectedListing.seller_id ? (
+                  {uid === selectedListing.seller_id && !selectedListing.featured ? (
                     <Button
                       variant="destructive"
                       onClick={() => {
@@ -1325,7 +1325,7 @@ const handleBuy = useCallback(
                   
                   {/* Action Buttons */}
                   <DialogFooter className="mt-6 gap-3">
-                    {uid === selectedListing.seller_id ? (
+                    {uid === selectedListing.seller_id && !selectedListing.featured ? (
                       <Button
                         variant="destructive"
                         onClick={() => {
