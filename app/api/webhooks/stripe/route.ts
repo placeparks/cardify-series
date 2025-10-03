@@ -2263,11 +2263,28 @@ async function handleSingleMarketplaceOrder(session: Stripe.Checkout.Session, co
 
     // Update series supply for featured cards (physical cards)
     if (quantity > 0) {
+      // First get the asset_id from the marketplace listing
+      const { data: listingData } = await supabase
+        .from('marketplace_listings')
+        .select('asset_id')
+        .eq('id', listingId)
+        .single();
+      
+      if (!listingData?.asset_id) {
+        logEvent({
+          level: LogLevel.INFO,
+          message: 'No asset_id found for marketplace listing',
+          sessionId: session.id,
+          data: { listingId }
+        }, correlationId);
+        return;
+      }
+      
       // Get the series_id for this asset
       const { data: assetData } = await supabase
         .from('user_assets')
         .select('source_id, asset_type')
-        .eq('id', listingId)
+        .eq('id', listingData.asset_id)
         .single();
       
       if (assetData) {
@@ -2292,13 +2309,21 @@ async function handleSingleMarketplaceOrder(session: Stripe.Checkout.Session, co
         
         // Update series supply if this is a featured card
         if (seriesId) {
-          const { error: supplyError } = await supabase
-            .from('series')
-            .update({ 
-              remaining_supply: supabase.raw(`remaining_supply - ${quantity}`),
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', seriesId);
+          logEvent({
+            level: LogLevel.INFO,
+            message: 'Updating series supply for featured card',
+            sessionId: session.id,
+            data: { 
+              seriesId,
+              quantity,
+              assetId: listingData.asset_id
+            }
+          }, correlationId);
+          
+          const { error: supplyError } = await supabase.rpc('decrement_series_supply', {
+            series_id: seriesId,
+            quantity: quantity
+          });
           
           if (supplyError) {
             logError(
@@ -2316,6 +2341,16 @@ async function handleSingleMarketplaceOrder(session: Stripe.Checkout.Session, co
               data: { seriesId, quantity }
             }, correlationId);
           }
+        } else {
+          logEvent({
+            level: LogLevel.INFO,
+            message: 'No series_id found for asset - not a featured card',
+            sessionId: session.id,
+            data: { 
+              assetId: listingData.asset_id,
+              assetType: assetData?.asset_type
+            }
+          }, correlationId);
         }
       }
     }
