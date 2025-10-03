@@ -13,14 +13,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { imageUrl, prompt, revisedPrompt } = await req.json()
+    const { imageUrl, prompt, revisedPrompt, title } = await req.json()
 
     if (!imageUrl) {
       return NextResponse.json({ error: 'Image URL is required' }, { status: 400 })
     }
 
-    // Generate unique card name with database collision detection
-    const finalName = 'AI Generated'
+    // Use the provided title or fallback to a default
+    const finalName = title || 'AI Generated'
 
     // Save to generated_images table
     const { data, error } = await supabase
