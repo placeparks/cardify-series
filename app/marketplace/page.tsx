@@ -188,6 +188,12 @@ function MarketplaceCard({
               </Badge>
             </div>
           )}
+          {/* Debug: Show featured status */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="text-xs text-gray-500">
+              Featured: {listing.featured ? 'true' : 'false'}
+            </div>
+          )}
 
           {/* Seller info - avatar + name */}
           <Link
@@ -428,6 +434,7 @@ function MarketplaceContent() {
         status,
         created_at,
         categories,
+        featured,
         asset_id,
         user_assets!inner(
           image_url,
