@@ -35,6 +35,8 @@ type ListingRow = {
   categories: CardCategory[]
   asset_id?: string
   featured?: boolean
+  remaining_supply?: number | null
+  total_supply?: number | null
 }
 
 type SellerMeta = {
@@ -129,6 +131,21 @@ function MarketplaceCard({
                 <Badge className="bg-yellow-500/90 text-black border-yellow-400 border-2 font-bold text-xs px-2 py-1 shadow-lg flex items-center gap-1">
                   <Star className="w-3 h-3 fill-black" />
                   FEATURED
+                </Badge>
+              </div>
+            )}
+
+            {/* Remaining Supply Badge - Only show for featured cards with supply info */}
+            {listing.featured && listing.remaining_supply !== null && listing.remaining_supply !== undefined && (
+              <div className="absolute top-11 left-2 z-10 pointer-events-none">
+                <Badge className={`${
+                  listing.remaining_supply === 0 
+                    ? 'bg-red-500/90 text-white border-red-400' 
+                    : listing.remaining_supply <= 5 
+                      ? 'bg-orange-500/90 text-white border-orange-400' 
+                      : 'bg-blue-500/90 text-white border-blue-400'
+                } border-2 font-bold text-xs px-2 py-1 shadow-lg flex items-center gap-1`}>
+                  {listing.remaining_supply === 0 ? '❌' : '📦'} {listing.remaining_supply} Left
                 </Badge>
               </div>
             )}
@@ -459,7 +476,12 @@ function MarketplaceContent() {
         asset_id,
         user_assets!inner(
           image_url,
-          title
+          title,
+          series_id,
+          series(
+            remaining_supply,
+            total_supply
+          )
         )
       `, { count: 'exact' })
       .eq('status', 'active')
@@ -524,7 +546,9 @@ function MarketplaceContent() {
       created_at: item.created_at,
       categories: item.categories || [],
       featured: item.featured || false, // Add the featured field!
-      asset_id: item.asset_id
+      asset_id: item.asset_id,
+      remaining_supply: item.user_assets?.series?.remaining_supply || null,
+      total_supply: item.user_assets?.series?.total_supply || null
     }))
 
     // If sorting by sales, fetch sale counts via API (to bypass RLS)
