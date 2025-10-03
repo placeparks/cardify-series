@@ -429,6 +429,7 @@ export default function AuthenticatedGeneratePage() {
 
   /* ───────── series auto-linking ───────────────── */
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
+  const [seriesType, setSeriesType] = useState<string | null>(null);
   
   useEffect(() => {
     // Check if there's an active series in localStorage
@@ -436,10 +437,11 @@ export default function AuthenticatedGeneratePage() {
       const stored = localStorage.getItem('activeSeries');
       if (stored) {
         try {
-          const { seriesId, timestamp } = JSON.parse(stored);
+          const { seriesId, series_type, timestamp } = JSON.parse(stored);
           // Only use if created within last 10 minutes
           if (Date.now() - timestamp < 600000) {
             setActiveSeriesId(seriesId);
+            setSeriesType(series_type || 'physical_only');
           } else {
             localStorage.removeItem('activeSeries');
           }
@@ -2112,7 +2114,8 @@ const burnFreeQuota = async () => {
                   </div>
 
                   {/* ---------- NFT Generation Option (After Generation) ---------- */}
-                  {generationComplete && (generatedImage || sessionImages.length > 0) && (
+                  {/* Only show NFT option if NOT physical_only series */}
+                  {generationComplete && (generatedImage || sessionImages.length > 0) && seriesType !== 'physical_only' && (
                     <div className="mt-6">
                       <NFTGenerationOption
                         onNFTToggle={setGenerateNFT}
@@ -2126,7 +2129,8 @@ const burnFreeQuota = async () => {
                   )}
 
                   {/* ---------- NFT Collection Form (After Generation) ---------- */}
-                  {showNFTForm && (generatedImage || sessionImages.length > 0) && (
+                  {/* Only show NFT form if NOT physical_only series */}
+                  {showNFTForm && (generatedImage || sessionImages.length > 0) && seriesType !== 'physical_only' && (
                     <div className="mt-6">
                       <NFTCollectionForm
                         onCollectionGenerated={(address, codes) => {
