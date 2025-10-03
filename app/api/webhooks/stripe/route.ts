@@ -2242,7 +2242,11 @@ async function handleSingleMarketplaceOrder(session: Stripe.Checkout.Session, co
         payment_status: 'settled',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        credited_at: new Date().toISOString()
+        credited_at: new Date().toISOString(),
+        metadata: {
+          quantity: quantity,
+          single_card_price: totalAmountCents / quantity
+        }
       });
 
     if (error) {
