@@ -39,7 +39,7 @@ interface UploadStatus {
   message: string
 }
 
-function UploadPageContent({ isSeriesFlow = false, seriesId }: { isSeriesFlow?: boolean, seriesId?: string | null } = {}) {
+function UploadPageContent({ isSeriesFlow = false, seriesId, searchParams }: { isSeriesFlow?: boolean, seriesId?: string | null, searchParams?: URLSearchParams }) {
   const router = useRouter()
   
   /* ────────────────────────────── state ────────────────────────────── */
@@ -112,7 +112,7 @@ function UploadPageContent({ isSeriesFlow = false, seriesId }: { isSeriesFlow?: 
       await fetchUploadStatus(user.id)
       
       // Check if user came from sign-in with purchase intent
-      const intent = searchParams.get('intent')
+      const intent = searchParams?.get('intent')
       if (intent === 'purchase' && userCredits < 10) {
         // User just signed in and needs credits
         router.push('/credits?returnTo=/upload')
@@ -1284,5 +1284,5 @@ function UploadPageWrapper() {
   const isSeriesFlow = searchParams.get('series') === 'true'
   const seriesId = searchParams.get('seriesId')
 
-  return <UploadPageContent isSeriesFlow={isSeriesFlow} seriesId={seriesId} />
+  return <UploadPageContent isSeriesFlow={isSeriesFlow} seriesId={seriesId} searchParams={searchParams} />
 }
