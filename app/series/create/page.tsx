@@ -103,9 +103,9 @@ export default function CreateSeriesPage() {
     console.log('💾 [Create] Saved to localStorage:', seriesData)
     
     if (method === 'upload') {
-      router.push(`/upload?series=true&seriesId=${createdSeriesId}`)
+      router.push(`/series/upload?series=true&seriesId=${createdSeriesId}`)
     } else {
-      router.push(`/generate?series=true&seriesId=${createdSeriesId}`)
+      router.push(`/series/generate?series=true&seriesId=${createdSeriesId}`)
     }
   }
 
