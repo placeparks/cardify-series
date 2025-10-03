@@ -457,6 +457,8 @@ const handleFileUpload = useCallback(async (file: File) => {
     // 3) Authenticated: upload and let the DB trigger bill a paid credit.
     //    IMPORTANT: Do NOT mark as AI generation here (uploads don't get free gens).
     try {
+      console.log('📤 [Upload] Initial upload with activeSeriesId:', activeSeriesId);
+      
       const result = await uploadUserImage(
         processedBlob,
         undefined,
@@ -465,9 +467,13 @@ const handleFileUpload = useCallback(async (file: File) => {
           metadata: {
             is_ai_generation: false,
             source_type:      "uploaded_image",   // <── added
+            series_id: activeSeriesId || null,    // <── added for series
+            featured: activeSeriesId ? true : false, // <── added for series
           },
         },
       );
+      
+      console.log('✅ [Upload] Initial upload result:', result.success, 'Series was:', activeSeriesId);
 
       // Check if upload was blocked due to duplicate
       if (!result.success) {
@@ -1308,7 +1314,8 @@ artwork={uploadedImageUrl || (isUploading ? null : uploadedImage)}
                 )}
                 
                 {/* NFT Generation Option for Mobile */}
-                {uploadedImage && (
+                {/* Only show NFT option if NOT physical_only series */}
+                {uploadedImage && seriesType !== 'physical_only' && (
                   <NFTGenerationOption
                     onNFTToggle={setGenerateNFT}
                     isEnabled={generateNFT}
