@@ -95,10 +95,12 @@ export default function CreateSeriesPage() {
     }
     
     // Save series info to localStorage for auto-linking cards
-    localStorage.setItem('activeSeries', JSON.stringify({
+    const seriesData = {
       seriesId: createdSeriesId,
       timestamp: Date.now()
-    }))
+    };
+    localStorage.setItem('activeSeries', JSON.stringify(seriesData));
+    console.log('💾 [Create] Saved to localStorage:', seriesData)
     
     if (method === 'upload') {
       router.push(`/upload?series=true&seriesId=${createdSeriesId}`)
