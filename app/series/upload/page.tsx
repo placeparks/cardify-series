@@ -52,18 +52,26 @@ function UploadPageContent() {
     // Check if there's an active series in localStorage
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('activeSeries')
+      console.log('🔍 [Upload] Checking localStorage for activeSeries:', stored)
       if (stored) {
         try {
           const { seriesId, timestamp } = JSON.parse(stored)
+          const age = Date.now() - timestamp
+          console.log('🔍 [Upload] Found series:', seriesId, 'Age:', age, 'ms')
           // Only use if created within last 10 minutes
-          if (Date.now() - timestamp < 600000) {
+          if (age < 600000) {
+            console.log('✅ [Upload] Using series ID:', seriesId)
             setActiveSeriesId(seriesId)
           } else {
+            console.log('⏰ [Upload] Series expired, removing')
             localStorage.removeItem('activeSeries')
           }
         } catch (e) {
+          console.error('❌ [Upload] Error parsing localStorage:', e)
           localStorage.removeItem('activeSeries')
         }
+      } else {
+        console.log('ℹ️ [Upload] No activeSeries in localStorage')
       }
     }
   }, [])
@@ -656,6 +664,8 @@ const finishOrRedirect = async (): Promise<void> => {
       ? processedImageBlob
       : await fetch(uploadedImage as string).then((r) => r.blob());
 
+    console.log('📤 [Upload] Starting upload with activeSeriesId:', activeSeriesId);
+    
     const result = await uploadUserImage(
       blob,
       undefined,
@@ -670,8 +680,11 @@ const finishOrRedirect = async (): Promise<void> => {
       },
     );
     
+    console.log('✅ [Upload] Upload result:', result.success, 'Series was:', activeSeriesId);
+    
     // Clear activeSeries from localStorage after successful upload
     if (activeSeriesId && result.success && typeof window !== 'undefined') {
+      console.log('🧹 [Upload] Clearing localStorage activeSeries');
       localStorage.removeItem('activeSeries');
     }
 
