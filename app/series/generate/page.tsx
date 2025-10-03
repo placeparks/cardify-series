@@ -427,6 +427,29 @@ export default function AuthenticatedGeneratePage() {
   const [authChecked, setAuthChecked] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
 
+  /* ───────── series auto-linking ───────────────── */
+  const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    // Check if there's an active series in localStorage
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('activeSeries');
+      if (stored) {
+        try {
+          const { seriesId, timestamp } = JSON.parse(stored);
+          // Only use if created within last 10 minutes
+          if (Date.now() - timestamp < 600000) {
+            setActiveSeriesId(seriesId);
+          } else {
+            localStorage.removeItem('activeSeries');
+          }
+        } catch (e) {
+          localStorage.removeItem('activeSeries');
+        }
+      }
+    }
+  }, []);
+
   /* ── NEW: persistent per-browser id ───────────────────────── */
   const [deviceId, setDeviceId] = useState<string>("");
   useEffect(() => {
@@ -807,7 +830,11 @@ const burnFreeQuota = async () => {
             style: fields.frameStyle,
             maintainLikeness,
           }
-        }
+        },
+        undefined, // metadata
+        undefined, // title
+        activeSeriesId ? true : false, // featured if part of series
+        activeSeriesId || undefined // seriesId
       );
       
       setUploadedImageUrl(publicUrl ?? null);
@@ -1415,9 +1442,16 @@ const burnFreeQuota = async () => {
                 maintainLikeness: true,
               }
             },
-            undefined,
-            cardTitle
+            undefined, // metadata
+            cardTitle, // title
+            activeSeriesId ? true : false, // featured if part of series
+            activeSeriesId || undefined // seriesId
           );
+          
+          // Clear activeSeries from localStorage after successful upload
+          if (activeSeriesId && typeof window !== 'undefined') {
+            localStorage.removeItem('activeSeries');
+          }
 
           setUploadedImageUrl(publicUrl ?? null);
           track("generate", { action: "upload_ok" }).catch(console.error); // Non-blocking
