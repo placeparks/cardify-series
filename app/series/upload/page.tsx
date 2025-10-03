@@ -464,13 +464,11 @@ const handleFileUpload = useCallback(async (file: File) => {
         undefined,
         {
           /* 👇 NEW: make the row unambiguously an *upload* */
-          metadata: {
-            is_ai_generation: false,
-            source_type:      "uploaded_image",   // <── added
-            series_id: activeSeriesId || null,    // <── added for series
-            featured: activeSeriesId ? true : false, // <── added for series
-          },
+          is_ai_generation: false,
+          source_type:      "uploaded_image",   // <── added
         },
+        activeSeriesId ? true : false, // featured (4th param)
+        activeSeriesId || undefined    // seriesId (5th param)
       );
       
       console.log('✅ [Upload] Initial upload result:', result.success, 'Series was:', activeSeriesId);
@@ -679,13 +677,11 @@ const finishOrRedirect = async (): Promise<void> => {
       undefined,
       {
         /* 👇 SAME one-liner here */
-        metadata: {
-          is_ai_generation: false,
-          source_type:      "uploaded_image",   // <── added
-          series_id: activeSeriesId || null,    // <── added for series
-          featured: activeSeriesId ? true : false, // <── added for series
-        },
+        is_ai_generation: false,
+        source_type:      "uploaded_image",   // <── added
       },
+      activeSeriesId ? true : false, // featured (4th param)
+      activeSeriesId || undefined    // seriesId (5th param)
     );
     
     console.log('✅ [Upload] Upload result:', result.success, 'Series was:', activeSeriesId);
