@@ -66,6 +66,16 @@ export default function CreateSeriesPage() {
       }
 
       setCreatedSeriesId(result.series.id)
+      
+      // Store series data including type for later use
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('createdSeriesData', JSON.stringify({
+          id: result.series.id,
+          series_type: result.series.series_type,
+          timestamp: Date.now()
+        }))
+      }
+      
       setStep('method')
       
       toast({
@@ -94,9 +104,14 @@ export default function CreateSeriesPage() {
       return
     }
     
+    // Get series data from localStorage
+    const storedSeriesData = localStorage.getItem('createdSeriesData')
+    const parsedData = storedSeriesData ? JSON.parse(storedSeriesData) : {}
+    
     // Save series info to localStorage for auto-linking cards
     const seriesData = {
       seriesId: createdSeriesId,
+      series_type: parsedData.series_type || 'physical_only',
       timestamp: Date.now()
     };
     localStorage.setItem('activeSeries', JSON.stringify(seriesData));
