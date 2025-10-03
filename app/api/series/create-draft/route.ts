@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
         id: series.id,
         title: series.title,
         description: series.description,
+        series_type: series.series_type, // Include series_type
         totalSupply: series.total_supply,
         remainingSupply: series.remaining_supply,
         priceCents: series.price_cents,
