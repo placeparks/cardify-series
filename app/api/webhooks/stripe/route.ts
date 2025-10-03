@@ -2229,25 +2229,41 @@ async function handleSingleMarketplaceOrder(session: Stripe.Checkout.Session, co
     }
 
     // Create marketplace transaction record
+    const transactionData = {
+      listing_id: listingId,
+      buyer_id: buyerId, // Use UUID or null
+      seller_id: sellerId,
+      amount_cents: totalAmountCents,
+      currency: 'USD',
+      stripe_payment_intent_id: session.payment_intent as string,
+      status: 'completed',
+      payment_status: 'settled',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      credited_at: new Date().toISOString(),
+      metadata: {
+        quantity: quantity,
+        single_card_price: totalAmountCents / quantity
+      }
+    };
+
+    logEvent({
+      level: LogLevel.INFO,
+      message: 'Creating marketplace transaction',
+      sessionId: session.id,
+      data: { 
+        transactionData,
+        listingId,
+        sellerId,
+        buyerId,
+        quantity,
+        totalAmountCents
+      }
+    }, correlationId);
+
     const { error } = await supabase
       .from('marketplace_transactions')
-      .insert({
-        listing_id: listingId,
-        buyer_id: buyerId, // Use UUID or null
-        seller_id: sellerId,
-        amount_cents: totalAmountCents,
-        currency: 'USD',
-        stripe_payment_intent_id: session.payment_intent as string,
-        status: 'completed',
-        payment_status: 'settled',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        credited_at: new Date().toISOString(),
-        metadata: {
-          quantity: quantity,
-          single_card_price: totalAmountCents / quantity
-        }
-      });
+      .insert(transactionData);
 
     if (error) {
       logError(
@@ -2259,7 +2275,8 @@ async function handleSingleMarketplaceOrder(session: Stripe.Checkout.Session, co
           sessionId: session.id,
           listingId,
           sellerId,
-          amountCents: totalAmountCents
+          amountCents: totalAmountCents,
+          errorDetails: JSON.stringify(error, null, 2)
         }
       );
       throw error;
