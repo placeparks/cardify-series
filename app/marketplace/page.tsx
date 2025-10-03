@@ -180,14 +180,22 @@ function MarketplaceCard({
             </div>
           )}
           {/* Featured Badge */}
-          {listing.featured && (
-            <div className="flex justify-start">
-              <Badge className="bg-yellow-500/90 text-black border-yellow-400 border-2 font-bold text-xs px-2 py-1 shadow-lg flex items-center gap-1">
-                <Star className="w-3 h-3 fill-black" />
-                FEATURED
-              </Badge>
-            </div>
-          )}
+          {(() => {
+            console.log('🔍 Rendering listing:', {
+              id: listing.id,
+              title: listing.title,
+              featured: listing.featured,
+              featuredType: typeof listing.featured
+            })
+            return listing.featured && (
+              <div className="flex justify-start">
+                <Badge className="bg-yellow-500/90 text-black border-yellow-400 border-2 font-bold text-xs px-2 py-1 shadow-lg flex items-center gap-1">
+                  <Star className="w-3 h-3 fill-black" />
+                  FEATURED
+                </Badge>
+              </div>
+            )
+          })()}
           {/* Debug: Show featured status */}
           {process.env.NODE_ENV === 'development' && (
             <div className="text-xs text-gray-500">
@@ -467,6 +475,17 @@ function MarketplaceContent() {
     }
 
     const { data, error, count } = await query
+
+    // Debug: Log the raw data to see if featured field is present
+    console.log('🔍 Raw marketplace data:', data)
+    if (data && data.length > 0) {
+      console.log('🔍 First listing featured status:', {
+        id: data[0].id,
+        title: data[0].title,
+        featured: data[0].featured,
+        hasFeaturedField: 'featured' in data[0]
+      })
+    }
 
     if (error) {
       setListings([])
