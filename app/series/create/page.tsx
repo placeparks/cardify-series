@@ -94,6 +94,12 @@ export default function CreateSeriesPage() {
       return
     }
     
+    // Save series info to localStorage for auto-linking cards
+    localStorage.setItem('activeSeries', JSON.stringify({
+      seriesId: createdSeriesId,
+      timestamp: Date.now()
+    }))
+    
     if (method === 'upload') {
       router.push(`/upload?series=true&seriesId=${createdSeriesId}`)
     } else {
