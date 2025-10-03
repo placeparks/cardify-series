@@ -47,6 +47,7 @@ function UploadPageContent() {
   
   /* ───────── series auto-linking ───────────────── */
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null)
+  const [seriesType, setSeriesType] = useState<string | null>(null)
   
   useEffect(() => {
     // Check if there's an active series in localStorage
@@ -55,13 +56,14 @@ function UploadPageContent() {
       console.log('🔍 [Upload] Checking localStorage for activeSeries:', stored)
       if (stored) {
         try {
-          const { seriesId, timestamp } = JSON.parse(stored)
+          const { seriesId, series_type, timestamp } = JSON.parse(stored)
           const age = Date.now() - timestamp
-          console.log('🔍 [Upload] Found series:', seriesId, 'Age:', age, 'ms')
+          console.log('🔍 [Upload] Found series:', seriesId, 'Type:', series_type, 'Age:', age, 'ms')
           // Only use if created within last 10 minutes
           if (age < 600000) {
-            console.log('✅ [Upload] Using series ID:', seriesId)
+            console.log('✅ [Upload] Using series ID:', seriesId, 'Type:', series_type)
             setActiveSeriesId(seriesId)
+            setSeriesType(series_type || 'physical_only')
           } else {
             console.log('⏰ [Upload] Series expired, removing')
             localStorage.removeItem('activeSeries')
@@ -1070,7 +1072,8 @@ const finishOrRedirect = async (): Promise<void> => {
 
 
               {/* NFT Generation Option */}
-              {!isCheckingAuth && !isGuest && !hasNoCredits && uploadedImage && (
+              {/* Only show NFT option if NOT physical_only series */}
+              {!isCheckingAuth && !isGuest && !hasNoCredits && uploadedImage && seriesType !== 'physical_only' && (
                 <NFTGenerationOption
                   onNFTToggle={setGenerateNFT}
                   isEnabled={generateNFT}
@@ -1082,7 +1085,8 @@ const finishOrRedirect = async (): Promise<void> => {
               )}
 
               {/* NFT Collection Form */}
-              {showNFTForm && uploadedImage && (
+              {/* Only show NFT form if NOT physical_only series */}
+              {showNFTForm && uploadedImage && seriesType !== 'physical_only' && (
                 <NFTCollectionForm
                   onCollectionGenerated={(address, codes) => {
                     console.log('Collection generated:', address, codes)
