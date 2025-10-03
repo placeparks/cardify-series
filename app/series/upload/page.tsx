@@ -45,6 +45,29 @@ function UploadPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   
+  /* ───────── series auto-linking ───────────────── */
+  const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null)
+  
+  useEffect(() => {
+    // Check if there's an active series in localStorage
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('activeSeries')
+      if (stored) {
+        try {
+          const { seriesId, timestamp } = JSON.parse(stored)
+          // Only use if created within last 10 minutes
+          if (Date.now() - timestamp < 600000) {
+            setActiveSeriesId(seriesId)
+          } else {
+            localStorage.removeItem('activeSeries')
+          }
+        } catch (e) {
+          localStorage.removeItem('activeSeries')
+        }
+      }
+    }
+  }, [])
+  
   /* ────────────────────────────── state ────────────────────────────── */
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [processedImageBlob, setProcessedImageBlob] = useState<Blob | null>(null)
@@ -641,9 +664,16 @@ const finishOrRedirect = async (): Promise<void> => {
         metadata: {
           is_ai_generation: false,
           source_type:      "uploaded_image",   // <── added
+          series_id: activeSeriesId || null,    // <── added for series
+          featured: activeSeriesId ? true : false, // <── added for series
         },
       },
     );
+    
+    // Clear activeSeries from localStorage after successful upload
+    if (activeSeriesId && result.success && typeof window !== 'undefined') {
+      localStorage.removeItem('activeSeries');
+    }
 
     // Check if upload was blocked due to duplicate
     if (!result.success) {
