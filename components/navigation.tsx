@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ShoppingCart, Sparkles, Upload, Store, ChevronDown, Coins, User, LogOut, LogIn, Shield, BarChart3, Users } from "lucide-react"
+import { ShoppingCart, Sparkles, Upload, Store, ChevronDown, Coins, User, LogOut, LogIn, Shield, BarChart3, Users, Layers } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect, useCallback } from "react"
 import { useNavigationVisibility } from "@/hooks/use-navigation-visibility"
@@ -297,6 +297,13 @@ export function Navigation() {
                     <span>Upload Art</span>
                   </Link>
                 </DropdownMenuItem>
+                
+                <DropdownMenuItem asChild className="focus:bg-cyber-cyan/20 focus:text-cyber-cyan cursor-pointer transition-colors duration-200">
+                  <Link href="/series/launch" className="flex items-center gap-3 px-4 py-3 text-cyber-cyan hover:text-cyber-cyan font-mono text-sm">
+                    <Layers className="w-4 h-4" />
+                    <span>Launch Series</span>
+                  </Link>
+                </DropdownMenuItem>
           
                 <DropdownMenuItem asChild className="focus:bg-cyber-blue/20 focus:text-cyber-blue cursor-pointer transition-colors duration-200">
                   <Link href="/marketplace" className="flex items-center gap-3 px-4 py-3 text-cyber-blue hover:text-cyber-blue font-mono text-sm">
@@ -468,6 +475,17 @@ export function Navigation() {
                 >
                   <Upload className="w-4 h-4 mr-3" />
                   Upload Art
+                </Button>
+              </Link>
+
+              {/* Launch Series */}
+              <Link href="/series/launch" className="block">
+                <Button
+                  onClick={() => setIsMenuOpen(false)}
+                  className="w-full bg-cyber-dark border-2 border-cyber-cyan text-cyber-cyan hover:bg-cyber-cyan/10 tracking-wider justify-start"
+                >
+                  <Layers className="w-4 h-4 mr-3" />
+                  Launch Series
                 </Button>
               </Link>
 
