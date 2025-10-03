@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     // Check if series exists and user owns it
     const { data: series, error: seriesError } = await supabase
       .from('series')
-      .select('id, creator_id, status, remaining_supply')
+      .select('id, creator_id, status, remaining_supply, title')
       .eq('id', seriesId)
       .single()
 
@@ -93,31 +93,41 @@ export async function POST(request: NextRequest) {
 
     // Auto-create marketplace listing for the card
     try {
+      console.log(`Creating marketplace listing for asset ${assetId} in series ${seriesId}`)
+      
       const { data: assetDetails } = await supabase
         .from(assetTable)
         .select('title')
         .eq('id', assetId)
         .single()
 
+      console.log('Asset details:', assetDetails)
+
+      const listingData = {
+        seller_id: user.id,
+        asset_id: assetId,
+        title: assetDetails?.title || `Featured Card - ${series.title}`,
+        description: assetDetails?.title || `Featured Card - ${series.title}`,
+        price_cents: 900, // $9.00 for featured cards
+        currency: 'USD',
+        status: 'active',
+        categories: ['featured'],
+        featured: true
+      }
+
+      console.log('Listing data:', listingData)
+
       const { error: listingError } = await supabase
         .from('marketplace_listings')
-        .insert({
-          seller_id: user.id,
-          asset_id: assetId,
-          title: assetDetails?.title || `Featured Card - ${series.title}`,
-          description: assetDetails?.title || `Featured Card - ${series.title}`,
-          price_cents: 900, // $9.00 for featured cards
-          currency: 'USD',
-          status: 'active',
-          categories: ['featured'],
-          featured: true
-        })
+        .insert(listingData)
 
       if (listingError) {
-        console.warn('Failed to create marketplace listing:', listingError)
+        console.error('Failed to create marketplace listing:', listingError)
+      } else {
+        console.log('Successfully created marketplace listing')
       }
     } catch (error) {
-      console.warn('Auto-listing error (non-fatal):', error)
+      console.error('Auto-listing error (non-fatal):', error)
     }
 
     return NextResponse.json({
