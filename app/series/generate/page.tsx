@@ -30,6 +30,7 @@ import {
   X,
   Download,
   Sliders,
+  CheckCircle2,
 } from "lucide-react";
 import {
   Select,
@@ -822,15 +823,15 @@ const burnFreeQuota = async () => {
       // Use new uploadGeneratedImage function
       const { publicUrl } = await uploadGeneratedImage(
         cropped,
-        generatePrompt(editedPrompt),
+        generatePrompt(),
         {
           frameStyle: fields.frameStyle,
-          maintainLikeness,
-          referenceImage: referenceImage ? true : false,
+          maintainLikeness: true,
+          referenceImage: referenceImageFile ? true : false,
           generationParams: {
             model: "dall-e-3",
             style: fields.frameStyle,
-            maintainLikeness,
+            maintainLikeness: true,
           }
         },
         undefined, // metadata
@@ -1631,7 +1632,16 @@ const burnFreeQuota = async () => {
       {/* ────── checkout modal - opens after finalize ────── */}
       <CustomCardCheckoutModal
         isOpen={showCheckoutModal}
-        onClose={() => setShowCheckoutModal(false)}
+        onClose={() => {
+          setShowCheckoutModal(false)
+          // Reset generation state for series workflow - allow generating next card
+          if (activeSeriesId) {
+            setGenerationComplete(false)
+            setGeneratedImage(null)
+            setUploadedImageUrl(null)
+            setProcessedImageBlob(null)
+          }
+        }}
         uploadedImage={
           sessionImages.length
             ? sessionImages[currentImageIndex]
@@ -2015,9 +2025,9 @@ const burnFreeQuota = async () => {
                         </div>
                         <Button
                           onClick={isOutOfCredits ? () => window.location.href = "/credits?returnTo=/generate" : handleGenerate}
-                          disabled={!generateBtnEnabled && !isOutOfCredits}
+                          disabled={(!generateBtnEnabled && !isOutOfCredits) || (generationComplete && activeSeriesId !== null)}
                           className={`w-full text-lg py-6 tracking-wider transition-all duration-300 ${
-                            generateBtnEnabled || isOutOfCredits
+                            (generateBtnEnabled || isOutOfCredits) && !(generationComplete && activeSeriesId !== null)
                               ? "cyber-button"
                               : "bg-cyber-black/80 border-2 border-cyber-cyan/50 text-cyber-cyan/70 opacity-50"
                           }`}
@@ -2026,6 +2036,14 @@ const burnFreeQuota = async () => {
                             <>
                               <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                               Generating…
+                            </>
+                          ) : generationComplete && activeSeriesId !== null ? (
+                            <>
+                              <CheckCircle2 className="w-5 h-5 mr-2" />
+                              <span className="hidden sm:inline">
+                                Finalize to Generate Next
+                              </span>
+                              <span className="sm:hidden">Finalize First</span>
                             </>
                           ) : isOutOfFreeAndLoggedOut ? (
                             <>
