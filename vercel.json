@@ -1,14 +1,7 @@
 {
   "functions": {
-    "api/upload-to-pinata": {
-      "maxDuration": 60,
-      "memory": 1024,
-      "maxPayloadSize": "10mb"
-    }
-  },
-  "build": {
-    "env": {
-      "SHARP_IGNORE_GLOBAL": "1"
+    "app/api/upload-to-pinata/route.ts": {
+      "maxDuration": 60
     }
   }
 }
