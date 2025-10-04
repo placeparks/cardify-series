@@ -152,10 +152,14 @@ export async function POST(request: NextRequest) {
     console.log('🚀 [NFT Collection] Calling factory.createCollection with admin wallet as msg.sender')
     console.log('👤 [NFT Collection] Admin wallet (msg.sender):', adminWallet.address)
     
+    // Convert Pinata gateway URL to IPFS protocol URL
+    const ipfsUrl = baseUri.replace('https://gateway.pinata.cloud/ipfs/', 'ipfs://')
+    console.log('🔗 [NFT Collection] IPFS URL:', ipfsUrl)
+
     const tx = await factory.createCollection(
       name,
       symbol,
-      baseUri,
+      ipfsUrl,  // Use IPFS protocol URL instead of HTTP gateway
       maxSupply,
       mintPriceWei,
       royaltyBps,
@@ -387,8 +391,8 @@ export async function POST(request: NextRequest) {
         name,
         symbol,
         description,
-        base_uri: baseUri,
-        image_uri: baseUri,
+        base_uri: ipfsUrl, // Store IPFS protocol URL
+        image_uri: baseUri, // Store HTTP gateway URL for preview
         max_supply: maxSupply,
         mint_price: mintPriceWei.toString(),
         royalty_bps: royaltyBps,
