@@ -43,6 +43,9 @@ interface CustomCardCheckoutModalProps {
     image_url: string | null
     price_cents: number
     seller_id: string
+    remaining_supply?: number | null
+    total_supply?: number | null
+    featured?: boolean
   } | null
 }
 
@@ -65,6 +68,10 @@ interface InventoryData {
   inventory: number
   pricePerUnit: number
   pricingTiers: PricingTier[]
+  customCard?: {
+    pricePerUnit: number
+    pricingTiers: PricingTier[]
+  }
   displayCases: {
     inventory: number
     pricePerUnit: number
@@ -546,6 +553,12 @@ export function CustomCardCheckoutModal({ isOpen, onClose, uploadedImage, proces
     }
   })
 
+  // Calculate effective max quantity - only limit for featured marketplace cards
+  const effectiveMaxQuantity = isMarketplaceListing && marketplaceListing?.featured && 
+    marketplaceListing?.remaining_supply !== null && marketplaceListing?.remaining_supply !== undefined
+    ? Math.min(QUANTITY_CONFIG.MAX, marketplaceListing.remaining_supply)
+    : QUANTITY_CONFIG.MAX
+
   // Inventory state management
   const [inventoryState, setInventoryState] = useState<InventoryState>({
     data: null,
@@ -837,8 +850,25 @@ export function CustomCardCheckoutModal({ isOpen, onClose, uploadedImage, proces
 
     // Use custom card pricing tiers
     const customCardData = inventoryState.data.customCard
+    if (!customCardData) {
+      // Fallback if customCard data is missing
+      const fallbackPrice = 9.00
+      const cardFinishPricePerCard = (cardFinish === 'rainbow' || cardFinish === 'gloss') ? 4.00 : 0
+      const cardsTotalPrice = (fallbackPrice + cardFinishPricePerCard) * quantityState.value
+      const displayCasePrice = inventoryState.data.displayCases?.pricePerUnit || 19.00
+      const displayCaseTotalPrice = includeDisplayCase ? (displayCasePrice * displayCaseQuantity) : 0
+      const totalPrice = cardsTotalPrice + displayCaseTotalPrice
+      
+      return {
+        pricePerUnit: fallbackPrice,
+        totalPrice,
+        discount: 0,
+        savings: 0,
+      }
+    }
+    
     const applicableTiers = customCardData.pricingTiers.filter(
-      tier => quantityState.value >= tier.quantity
+      (tier: PricingTier) => quantityState.value >= tier.quantity
     )
     
     const bestTier = applicableTiers.length > 0 
@@ -1858,10 +1888,10 @@ export function CustomCardCheckoutModal({ isOpen, onClose, uploadedImage, proces
                       </div>
 
                       {/* Bulk Discount Tiers Display */}
-                      {inventoryState.data && inventoryState.data.customCard.pricingTiers.length > 1 && !isSoldOut && (
+                      {inventoryState.data?.customCard && inventoryState.data.customCard.pricingTiers.length > 1 && !isSoldOut && (
                         <div className="text-xs text-gray-400 bg-cyber-dark/40 rounded-lg p-2 space-y-1">
                           <p className="font-semibold text-cyber-cyan">💰 Bulk Discounts:</p>
-                          {inventoryState.data.customCard.pricingTiers.slice(1).map((tier, index) => (
+                          {inventoryState.data.customCard.pricingTiers.slice(1).map((tier: PricingTier, index: number) => (
                             <div key={index} className="flex justify-between">
                               <span>{tier.quantity}+ cards:</span>
                               <span className="text-cyber-purple">
