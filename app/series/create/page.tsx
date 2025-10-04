@@ -26,7 +26,6 @@ interface SeriesFormData {
   title: string
   description: string
   totalSupply: number
-  coverImageUrl: string
   tags: string[]
 }
 
@@ -38,7 +37,6 @@ export default function CreateSeriesPage() {
     title: '',
     description: '',
     totalSupply: 100,
-    coverImageUrl: '',
     tags: []
   })
   const [tagInput, setTagInput] = useState('')
@@ -226,20 +224,6 @@ export default function CreateSeriesPage() {
                     </p>
                   </div>
 
-                  {/* Cover Image URL */}
-                  <div>
-                    <Label htmlFor="coverImageUrl" className="text-white">Cover Image URL</Label>
-                    <Input
-                      id="coverImageUrl"
-                      value={seriesData.coverImageUrl}
-                      onChange={(e) => setSeriesData(prev => ({ ...prev, coverImageUrl: e.target.value }))}
-                      placeholder="https://example.com/cover-image.jpg"
-                      className="bg-cyber-dark/50 border-cyber-cyan/30 text-white mt-2"
-                    />
-                    <p className="text-xs text-gray-400 mt-1">
-                      Optional: URL to a cover image for your series
-                    </p>
-                  </div>
 
                   {/* Tags */}
                   <div>
