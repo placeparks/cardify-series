@@ -552,12 +552,15 @@ function MarketplaceContent() {
         total_supply: item.user_assets?.series?.total_supply || null
       }
       
-      // Debug log for featured cards with supply info
-      if (row.featured && row.remaining_supply !== null) {
-        console.log('📦 Featured card with supply:', {
+      // Debug log for featured cards - show ALL data
+      if (row.featured) {
+        console.log('📦 Featured card data:', {
           title: row.title,
           remaining_supply: row.remaining_supply,
-          total_supply: row.total_supply
+          total_supply: row.total_supply,
+          has_series_data: item.user_assets?.series ? 'yes' : 'no',
+          series_id: item.user_assets?.series_id,
+          full_series: item.user_assets?.series
         })
       }
       
