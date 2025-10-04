@@ -113,7 +113,46 @@ export function UploadArea({
         const compressedFile = await compressImage(file);
         console.log('Original size:', (file.size / 1024 / 1024).toFixed(2) + 'MB');
         console.log('Compressed size:', (compressedFile.size / 1024 / 1024).toFixed(2) + 'MB');
-        onFileUpload(compressedFile);
+
+        // Convert file to base64
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const base64Data = reader.result as string;
+          
+          try {
+            // Upload to temp endpoint first
+            const response = await fetch('/api/upload-temp', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                imageData: base64Data,
+                fileName: file.name
+              })
+            });
+
+            if (!response.ok) {
+              throw new Error('Upload failed');
+            }
+
+            const result = await response.json();
+            
+            // Create a mock File object with the Pinata URL for the parent component
+            const mockFile = new File(
+              [JSON.stringify({ url: result.pinataUrl })],
+              file.name,
+              { type: 'application/json' }
+            );
+            
+            onFileUpload(mockFile);
+          } catch (uploadError) {
+            console.error('Upload failed:', uploadError);
+            setError('Failed to upload image. Please try again.');
+          }
+        };
+        
+        reader.readAsDataURL(compressedFile);
       } catch (err) {
         console.error('Compression failed:', err);
         setError('Failed to process image. Please try a different file.');
