@@ -476,10 +476,22 @@ const handleFileUpload = useCallback(async (file: File) => {
       
       console.log('✅ [Upload] Initial upload result:', result.success, 'Series was:', activeSeriesId);
       
-      // Save card ID for NFT linking
+      // Get the user_assets ID (not uploaded_images ID)
       if (result.imageRecordId) {
-        setUploadedCardId(result.imageRecordId);
-        console.log('💾 [Upload] Saved card ID for NFT linking:', result.imageRecordId);
+        try {
+          const supabase = getSupabaseBrowserClient();
+          const { data: assetData } = await supabase
+            .from('user_assets')
+            .select('id')
+            .eq('source_id', result.imageRecordId)
+            .single<{ id: string }>();
+          
+          setUploadedCardId(assetData?.id ?? null);
+          console.log('💾 [Upload] Card ID for NFT linking:', assetData?.id);
+        } catch (error) {
+          console.error('Failed to get user_assets ID:', error);
+          setUploadedCardId(null);
+        }
       }
 
       // Check if upload was blocked due to duplicate
