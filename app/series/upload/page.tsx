@@ -49,6 +49,9 @@ function UploadPageContent() {
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null)
   const [seriesType, setSeriesType] = useState<string | null>(null)
   
+  /* ───────── NFT+Card linking ───────────────── */
+  const [uploadedCardId, setUploadedCardId] = useState<string | null>(null)
+  
   useEffect(() => {
     // Check if there's an active series in localStorage
     if (typeof window !== 'undefined') {
@@ -472,6 +475,12 @@ const handleFileUpload = useCallback(async (file: File) => {
       );
       
       console.log('✅ [Upload] Initial upload result:', result.success, 'Series was:', activeSeriesId);
+      
+      // Save card ID for NFT linking
+      if (result.imageRecordId) {
+        setUploadedCardId(result.imageRecordId);
+        console.log('💾 [Upload] Saved card ID for NFT linking:', result.imageRecordId);
+      }
 
       // Check if upload was blocked due to duplicate
       if (!result.success) {
@@ -1098,6 +1107,7 @@ const finishOrRedirect = async (): Promise<void> => {
                   onClose={() => setShowNFTForm(false)}
                   baseImage={uploadedImage}
                   collectionNumber={collectionNumber}
+                  cardId={uploadedCardId}
                 />
               )}
 
