@@ -952,7 +952,7 @@ export function CustomCardCheckoutModal({ isOpen, onClose, uploadedImage, proces
   }
 
   // Derived state for UI controls
-  const isIncrementDisabled = quantityState.value >= QUANTITY_CONFIG.MAX || isSoldOut
+  const isIncrementDisabled = quantityState.value >= effectiveMaxQuantity || isSoldOut
   const isDecrementDisabled = quantityState.value <= QUANTITY_CONFIG.MIN
   const totalPrice = currentPricing.totalPrice.toFixed(2)
 
@@ -1554,6 +1554,26 @@ export function CustomCardCheckoutModal({ isOpen, onClose, uploadedImage, proces
                   Premium quality trading cards delivered worldwide
                 </h2>
                 
+                {/* Supply Badge for Featured Cards */}
+                {isMarketplaceListing && marketplaceListing?.featured && 
+                 marketplaceListing?.remaining_supply !== null && 
+                 marketplaceListing?.remaining_supply !== undefined && (
+                  <div className="mt-2 flex items-center justify-center gap-2">
+                    <div className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${
+                      marketplaceListing.remaining_supply === 0
+                        ? 'bg-red-500/20 border-red-500 text-red-400'
+                        : marketplaceListing.remaining_supply <= 5
+                        ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400 animate-pulse'
+                        : 'bg-cyber-cyan/20 border-cyber-cyan text-cyber-cyan'
+                    }`}>
+                      {marketplaceListing.remaining_supply === 0
+                        ? '❌ SOLD OUT'
+                        : `⚡ ${marketplaceListing.remaining_supply} LEFT`
+                      }
+                    </div>
+                  </div>
+                )}
+                
                 {/* Error state indicator */}
                 {inventoryState.error && (
                   <div className="mt-2 flex items-center justify-center gap-2 text-red-400 text-xs">
@@ -1705,7 +1725,7 @@ export function CustomCardCheckoutModal({ isOpen, onClose, uploadedImage, proces
                                 : 'hover:bg-cyber-cyan/10 hover:border-cyber-cyan hover:text-cyber-cyan'
                             }`}
                             aria-label={`Increase quantity${isIncrementDisabled ? ' (at maximum)' : ''}`}
-                            title={isIncrementDisabled ? `Maximum quantity is ${QUANTITY_CONFIG.MAX}` : 'Increase quantity'}
+                            title={isIncrementDisabled ? `Maximum quantity is ${effectiveMaxQuantity}${effectiveMaxQuantity < QUANTITY_CONFIG.MAX ? ' (limited supply)' : ''}` : 'Increase quantity'}
                           >
                             <Plus className="w-3 h-3 sm:w-4 sm:h-4 lg:w-3 lg:h-3" />
                           </Button>
