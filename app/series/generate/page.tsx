@@ -1464,11 +1464,12 @@ const burnFreeQuota = async () => {
           // Get the user_assets ID (not generated_images ID)
           if (imageRecordId) {
             try {
-              const { data: assetData } = await sb
+              const supabase = getSupabaseBrowserClient();
+              const { data: assetData } = await supabase
                 .from('user_assets')
                 .select('id')
                 .eq('source_id', imageRecordId)
-                .single();
+                .single<{ id: string }>();
               
               setGeneratedCardId(assetData?.id ?? null);
               console.log('💾 [Generate] Card ID for NFT linking:', assetData?.id);
