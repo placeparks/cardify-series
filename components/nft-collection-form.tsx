@@ -64,21 +64,68 @@ export function NFTCollectionForm({
     setResult(null)
 
     try {
-      // First upload image to Pinata
-      const pinataResponse = await fetch('/api/upload-to-pinata', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ imageUrl: baseImage }),
-      })
-      
-      if (!pinataResponse.ok) {
-        throw new Error('Failed to upload image to Pinata')
+      // First upload image to Pinata using chunked upload
+      const imageResponse = await fetch(baseImage);
+      if (!imageResponse.ok) {
+        throw new Error('Failed to fetch image');
       }
       
-      const pinataResult = await pinataResponse.json()
-      const pinataUrl = pinataResult.pinataUrl
+      const imageBlob = await imageResponse.blob();
+      const file = new File([imageBlob], 'collection-image.jpg', { type: 'image/jpeg' });
+      
+      // Generate a unique file ID
+      const fileId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      
+      // Convert file to base64
+      const reader = new FileReader();
+      const pinataUrl = await new Promise<string>((resolve, reject) => {
+        reader.onload = async () => {
+          try {
+            const base64Data = (reader.result as string).split(',')[1]; // Remove data URL prefix
+            
+            // Split into 2MB chunks (to stay under Vercel's limit)
+            const chunkSize = 2 * 1024 * 1024; // 2MB
+            const chunks = [];
+            for (let i = 0; i < base64Data.length; i += chunkSize) {
+              chunks.push(base64Data.slice(i, i + chunkSize));
+            }
+
+            // Upload chunks
+            for (let i = 0; i < chunks.length; i++) {
+              const response = await fetch('/api/upload-chunk', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  chunk: chunks[i],
+                  chunkIndex: i,
+                  totalChunks: chunks.length,
+                  fileId
+                })
+              });
+
+              if (!response.ok) {
+                throw new Error('Chunk upload failed');
+              }
+
+              const result = await response.json();
+              
+              // If this was the last chunk and upload is complete
+              if (result.pinataUrl) {
+                resolve(result.pinataUrl);
+                return;
+              }
+            }
+          } catch (error) {
+            console.error('Chunked upload failed:', error);
+            reject(error);
+          }
+        };
+        
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
 
       // Then generate collection with Pinata URL
       const response = await collectionAPI.generateCollection({
