@@ -329,14 +329,14 @@ export default function NFTCollectionPage() {
 
       <Navigation />
 
-      <div className="px-6 py-8 pt-24 pb-20">
+      <div className="px-4 sm:px-6 py-6 sm:py-8 pt-20 sm:pt-24 pb-16 sm:pb-20">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="mb-8 text-center">
-            <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-wider mb-4">
+          <div className="mb-6 sm:mb-8 text-center">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-wider mb-3 sm:mb-4">
               Create NFT Collection
             </h1>
-            <p className="text-gray-400 text-lg">
+            <p className="text-gray-400 text-base sm:text-lg">
               Deploy your own ERC1155 NFT collection with full ownership
             </p>
             <div className="flex items-center justify-center gap-2 mt-4">
@@ -553,44 +553,44 @@ export default function NFTCollectionPage() {
                   </CardHeader>
                   <CardContent>
                     <form onSubmit={handleFormSubmit} className="space-y-4">
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="name" className="text-white">Collection Name</Label>
+                      <div className="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-4">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="name" className="text-white text-sm sm:text-base">Collection Name</Label>
                           <Input
                             id="name"
                             value={formData.name}
                             onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                             placeholder="My Awesome Collection"
                             required
-                            className="bg-cyber-dark/50 border-cyber-cyan/30 text-white"
+                            className="bg-cyber-dark/50 border-cyber-cyan/30 text-white h-10 sm:h-11"
                           />
                         </div>
-                        <div>
-                          <Label htmlFor="symbol" className="text-white">Symbol</Label>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="symbol" className="text-white text-sm sm:text-base">Symbol</Label>
                           <Input
                             id="symbol"
                             value={formData.symbol}
                             onChange={(e) => setFormData(prev => ({ ...prev, symbol: e.target.value }))}
                             placeholder="MAC"
                             required
-                            className="bg-cyber-dark/50 border-cyber-cyan/30 text-white"
+                            className="bg-cyber-dark/50 border-cyber-cyan/30 text-white h-10 sm:h-11"
                           />
                         </div>
                       </div>
 
-                      <div>
-                        <Label htmlFor="description" className="text-white">Description</Label>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="description" className="text-white text-sm sm:text-base">Description</Label>
                         <Textarea
                           id="description"
                           value={formData.description}
                           onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                           placeholder="Describe your collection..."
                           rows={3}
-                          className="bg-cyber-dark/50 border-cyber-cyan/30 text-white"
+                          className="bg-cyber-dark/50 border-cyber-cyan/30 text-white min-h-[80px]"
                         />
                       </div>
 
-                      <div className="grid md:grid-cols-3 gap-4">
+                      <div className="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-3 sm:gap-4">
                         <div>
                           <Label htmlFor="maxSupply" className="text-white flex items-center gap-2">
                             <Users className="w-4 h-4" />
@@ -667,41 +667,41 @@ export default function NFTCollectionPage() {
               <CardContent>
                 <div className="space-y-6">
                   {/* Collection Preview */}
-                  <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-6 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-6">
                     <div>
-                      <h4 className="text-cyber-cyan font-semibold mb-3">Collection Image</h4>
+                      <h4 className="text-cyber-cyan font-semibold mb-3 text-sm sm:text-base">Collection Image</h4>
                       {uploadedImage && (
                         <img 
                           src={uploadedImage} 
                           alt="Collection preview" 
-                          className="w-full h-48 object-cover rounded-lg border border-cyber-cyan/30"
+                          className="w-full h-40 sm:h-48 object-cover rounded-lg border border-cyber-cyan/30"
                         />
                       )}
                     </div>
-                    <div className="space-y-3">
-                      <div>
+                    <div className="space-y-2.5 sm:space-y-3 text-sm sm:text-base">
+                      <div className="flex justify-between items-center border-b border-gray-700/50 pb-2">
                         <span className="text-gray-400">Name:</span>
-                        <span className="text-white ml-2">{formData.name}</span>
+                        <span className="text-white">{formData.name}</span>
                       </div>
-                      <div>
+                      <div className="flex justify-between items-center border-b border-gray-700/50 pb-2">
                         <span className="text-gray-400">Symbol:</span>
-                        <span className="text-white ml-2">{formData.symbol}</span>
+                        <span className="text-white">{formData.symbol}</span>
                       </div>
-                      <div>
+                      <div className="flex justify-between items-center border-b border-gray-700/50 pb-2">
                         <span className="text-gray-400">Max Supply:</span>
-                        <span className="text-white ml-2">{formData.maxSupply}</span>
+                        <span className="text-white">{formData.maxSupply}</span>
                       </div>
-                      <div>
+                      <div className="flex justify-between items-center border-b border-gray-700/50 pb-2">
                         <span className="text-gray-400">Mint Price:</span>
-                        <span className="text-white ml-2">{formData.mintPrice} ETH</span>
+                        <span className="text-white">{formData.mintPrice} ETH</span>
                       </div>
-                      <div>
+                      <div className="flex justify-between items-center border-b border-gray-700/50 pb-2">
                         <span className="text-gray-400">Royalty:</span>
-                        <span className="text-white ml-2">{formData.royaltyBps / 100}%</span>
+                        <span className="text-white">{formData.royaltyBps / 100}%</span>
                       </div>
-                      <div>
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 sm:gap-2 pt-1">
                         <span className="text-gray-400">Owner:</span>
-                        <span className="text-white ml-2 font-mono text-sm">{finalWalletAddress}</span>
+                        <span className="text-white font-mono text-xs sm:text-sm break-all">{finalWalletAddress}</span>
                       </div>
                     </div>
                   </div>
@@ -718,18 +718,18 @@ export default function NFTCollectionPage() {
                     </p>
                   </div>
 
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     <Button 
                       onClick={() => setStep('form')}
                       variant="outline"
-                      className="flex-1 border-gray-600 text-gray-400 hover:bg-gray-800"
+                      className="w-full sm:flex-1 border-gray-600 text-gray-400 hover:bg-gray-800 h-11 sm:h-12"
                     >
                       Back to Edit
                     </Button>
                     <Button 
                       onClick={handleDeploy}
                       disabled={loading}
-                      className="flex-1 cyber-button"
+                      className="w-full sm:flex-1 cyber-button h-11 sm:h-12 text-base"
                     >
                       {loading ? (
                         <>
