@@ -432,6 +432,9 @@ export default function AuthenticatedGeneratePage() {
   const [activeSeriesId, setActiveSeriesId] = useState<string | null>(null);
   const [seriesType, setSeriesType] = useState<string | null>(null);
   
+  /* ───────── NFT+Card linking ───────────────── */
+  const [generatedCardId, setGeneratedCardId] = useState<string | null>(null);
+  
   useEffect(() => {
     // Check if there's an active series in localStorage
     if (typeof window !== 'undefined') {
@@ -1431,7 +1434,7 @@ const burnFreeQuota = async () => {
           
           const cardTitle = fields.titleText || 'Generated Card';
           
-          const { publicUrl } = await uploadGeneratedImage(
+          const { publicUrl, imageRecordId } = await uploadGeneratedImage(
             cropped,
             prompt,
             {
@@ -1457,6 +1460,7 @@ const burnFreeQuota = async () => {
           }
 
           setUploadedImageUrl(publicUrl ?? null);
+          setGeneratedCardId(imageRecordId ?? null); // Save card ID for NFT linking
           track("generate", { action: "upload_ok" }).catch(console.error); // Non-blocking
 
           // Show success toast with longer duration
@@ -2159,6 +2163,7 @@ const burnFreeQuota = async () => {
                         onClose={() => setShowNFTForm(false)}
                         baseImage={generatedImage || sessionImages[currentImageIndex] || ''}
                         collectionNumber={collectionNumber}
+                        cardId={generatedCardId}
                       />
                     </div>
                   )}
