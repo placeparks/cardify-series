@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
         price_cents,
         currency: 'USD',
         status: 'active',
-        categories: ['featured'], // Mark as featured category
+        categories: ['limited_edition'], // Trigger will add nft_redeemable
         featured: true, // Mark as featured
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
