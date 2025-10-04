@@ -62,10 +62,10 @@ export default function LaunchSeriesPage() {
                 
                 <Button 
                   asChild
-                  className="w-full cyber-button"
+                  className="w-full cyber-button h-11 sm:h-12 text-sm sm:text-base font-medium"
                 >
-                  <Link href="/series/create">
-                    Create Featured Series
+                  <Link href="/series/create" className="flex items-center justify-center">
+                    CREATE FEATURED SERIES
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Link>
                 </Button>
@@ -101,10 +101,10 @@ export default function LaunchSeriesPage() {
                 
                 <Button 
                   asChild
-                  className="w-full cyber-button"
+                  className="w-full cyber-button h-11 sm:h-12 text-sm sm:text-base font-medium"
                 >
-                  <Link href="/series/cards-with-nfts">
-                    Choose Method
+                  <Link href="/series/cards-with-nfts" className="flex items-center justify-center">
+                    CHOOSE METHOD
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Link>
                 </Button>
@@ -140,10 +140,10 @@ export default function LaunchSeriesPage() {
                 
                 <Button 
                   asChild
-                  className="w-full cyber-button"
+                  className="w-full cyber-button h-11 sm:h-12 text-sm sm:text-base font-medium"
                 >
-                  <Link href="/series/nfts-only">
-                    Choose Method
+                  <Link href="/series/nfts-only" className="flex items-center justify-center">
+                    CHOOSE METHOD
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Link>
                 </Button>
