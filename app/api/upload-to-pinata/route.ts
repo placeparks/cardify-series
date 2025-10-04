@@ -1,5 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// Configure route to handle larger payloads
+export const runtime = 'nodejs'
+export const maxDuration = 60
+
+/**
+ * Compress image to reduce file size before uploading to Pinata
+ * Target: Max 2MB, Quality 85%, Max dimensions 2048x2048
+ */
+async function compressImage(buffer: Buffer): Promise<Buffer> {
+  try {
+    // Try to use sharp for better compression
+    const sharp = await import('sharp').catch(() => null)
+    
+    if (sharp) {
+      return await sharp.default(buffer)
+        .resize(2048, 2048, {
+          fit: 'inside',
+          withoutEnlargement: true
+        })
+        .jpeg({ quality: 85, progressive: true })
+        .toBuffer()
+    }
+    
+    // Fallback: return original buffer if sharp not available
+    console.warn('Sharp not available, using original image')
+    return buffer
+  } catch (error) {
+    console.error('Image compression failed:', error)
+    return buffer // Return original on error
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get('content-type')
@@ -24,8 +56,14 @@ export async function POST(req: NextRequest) {
       }
 
       const imageBuffer = await imageResponse.arrayBuffer()
-      const blob = new Blob([imageBuffer], { type: 'image/png' })
-      file = new File([blob], 'card-image.png', { type: 'image/png' })
+      
+      // Compress image to reduce size (max 2MB)
+      const compressedBuffer = await compressImage(Buffer.from(imageBuffer))
+      
+      // Convert Buffer to Uint8Array for Blob
+      const uint8Array = new Uint8Array(compressedBuffer)
+      const blob = new Blob([uint8Array], { type: 'image/jpeg' })
+      file = new File([blob], 'card-image.jpg', { type: 'image/jpeg' })
     } else {
       // Handle FormData request with file
       const formData = await req.formData()
@@ -38,7 +76,14 @@ export async function POST(req: NextRequest) {
         )
       }
       
-      file = uploadedFile
+      // Compress uploaded file as well
+      const fileBuffer = Buffer.from(await uploadedFile.arrayBuffer())
+      const compressedBuffer = await compressImage(fileBuffer)
+      
+      // Convert Buffer to Uint8Array for Blob
+      const uint8Array = new Uint8Array(compressedBuffer)
+      const blob = new Blob([uint8Array], { type: 'image/jpeg' })
+      file = new File([blob], 'card-image.jpg', { type: 'image/jpeg' })
     }
 
     const pinataFormData = new FormData()
