@@ -9,5 +9,22 @@
     "env": {
       "SHARP_IGNORE_GLOBAL": "1"
     }
+  },
+  "routes": [
+    {
+      "source": "/api/upload-to-pinata",
+      "destination": "/api/upload-to-pinata",
+      "methods": ["POST"],
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization"
+      }
+    }
+  ],
+  "limits": {
+    "bodyParser": {
+      "sizeLimit": "10mb"
+    }
   }
 }
