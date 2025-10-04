@@ -114,38 +114,61 @@ export function UploadArea({
         console.log('Original size:', (file.size / 1024 / 1024).toFixed(2) + 'MB');
         console.log('Compressed size:', (compressedFile.size / 1024 / 1024).toFixed(2) + 'MB');
 
+        // Generate a unique file ID
+        const fileId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+
         // Convert file to base64
         const reader = new FileReader();
         reader.onload = async () => {
-          const base64Data = reader.result as string;
+          const base64Data = (reader.result as string).split(',')[1]; // Remove data URL prefix
           
+          // Split into 2MB chunks (to stay under Vercel's limit)
+          const chunkSize = 2 * 1024 * 1024; // 2MB
+          const chunks = [];
+          for (let i = 0; i < base64Data.length; i += chunkSize) {
+            chunks.push(base64Data.slice(i, i + chunkSize));
+          }
+
           try {
-            // Upload to temp endpoint first
-            const response = await fetch('/api/upload-temp', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                imageData: base64Data,
-                fileName: file.name
-              })
-            });
+            // Upload chunks
+            for (let i = 0; i < chunks.length; i++) {
+              const response = await fetch('/api/upload-chunk', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  chunk: chunks[i],
+                  chunkIndex: i,
+                  totalChunks: chunks.length,
+                  fileId
+                })
+              });
 
-            if (!response.ok) {
-              throw new Error('Upload failed');
+              if (!response.ok) {
+                throw new Error('Chunk upload failed');
+              }
+
+              const result = await response.json();
+              
+              // Update progress
+              const progress = Math.round(((i + 1) / chunks.length) * 100);
+              if (onFileUpload) {
+                onFileUpload(new File([progress.toString()], 'progress', { type: 'text/plain' }));
+              }
+
+              // If this was the last chunk and upload is complete
+              if (result.pinataUrl) {
+                // Create a mock File object with the Pinata URL
+                const mockFile = new File(
+                  [JSON.stringify({ url: result.pinataUrl })],
+                  file.name,
+                  { type: 'application/json' }
+                );
+                onFileUpload(mockFile);
+                return;
+              }
             }
-
-            const result = await response.json();
-            
-            // Create a mock File object with the Pinata URL for the parent component
-            const mockFile = new File(
-              [JSON.stringify({ url: result.pinataUrl })],
-              file.name,
-              { type: 'application/json' }
-            );
-            
-            onFileUpload(mockFile);
           } catch (uploadError) {
             console.error('Upload failed:', uploadError);
             setError('Failed to upload image. Please try again.');
