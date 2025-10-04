@@ -47,18 +47,77 @@ export function UploadArea({
     return null
   }
 
-  const handleFile = useCallback(
-    (file: File) => {
-      if (disabled) return
+  const compressImage = async (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
 
-      const validationError = validateFile(file)
+        // Calculate new dimensions (max 1600px width/height)
+        let width = img.width;
+        let height = img.height;
+        const maxDimension = 1600;
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error('Failed to compress image'));
+              return;
+            }
+            const compressedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            });
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          0.8 // compression quality
+        );
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+    });
+  };
+
+  const handleFile = useCallback(
+    async (file: File) => {
+      if (disabled) return;
+
+      const validationError = validateFile(file);
       if (validationError) {
-        setError(validationError)
-        return
+        setError(validationError);
+        return;
       }
 
-      setError(null)
-      onFileUpload(file)
+      try {
+        setError(null);
+        const compressedFile = await compressImage(file);
+        console.log('Original size:', (file.size / 1024 / 1024).toFixed(2) + 'MB');
+        console.log('Compressed size:', (compressedFile.size / 1024 / 1024).toFixed(2) + 'MB');
+        onFileUpload(compressedFile);
+      } catch (err) {
+        console.error('Compression failed:', err);
+        setError('Failed to process image. Please try a different file.');
+      }
     },
     [onFileUpload, disabled],
   )
