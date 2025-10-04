@@ -138,30 +138,80 @@ export default function NFTCollectionPage() {
   const handleImageUpload = async (file: File) => {
     setLoading(true)
     try {
-      // Upload to Pinata
-      const formData = new FormData()
-      formData.append('file', file)
+      // Generate a unique file ID
+      const fileId = Math.random().toString(36).substring(2) + Date.now().toString(36);
       
-      const response = await fetch('/api/upload-to-pinata', {
-        method: 'POST',
-        body: formData
-      })
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64Data = (reader.result as string).split(',')[1]; // Remove data URL prefix
+          
+          // Split into 2MB chunks (to stay under Vercel's limit)
+          const chunkSize = 2 * 1024 * 1024; // 2MB
+          const chunks = [];
+          for (let i = 0; i < base64Data.length; i += chunkSize) {
+            chunks.push(base64Data.slice(i, i + chunkSize));
+          }
+
+          // Upload chunks
+          for (let i = 0; i < chunks.length; i++) {
+            const response = await fetch('/api/upload-chunk', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                chunk: chunks[i],
+                chunkIndex: i,
+                totalChunks: chunks.length,
+                fileId
+              })
+            });
+
+            if (!response.ok) {
+              throw new Error('Chunk upload failed');
+            }
+
+            const result = await response.json();
+            
+            // If this was the last chunk and upload is complete
+            if (result.pinataUrl) {
+              setUploadedImage(URL.createObjectURL(file))
+              setPinataUrl(result.pinataUrl)
+              setStep('form')
+              setLoading(false)
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('Chunked upload failed:', error);
+          toast({
+            title: "Upload Failed",
+            description: "Failed to upload image to IPFS",
+            variant: "destructive"
+          })
+          setLoading(false)
+        }
+      };
       
-      if (!response.ok) {
-        throw new Error('Failed to upload image')
-      }
+      reader.onerror = () => {
+        toast({
+          title: "Upload Failed",
+          description: "Failed to read file",
+          variant: "destructive"
+        })
+        setLoading(false)
+      };
       
-      const result = await response.json()
-      setUploadedImage(URL.createObjectURL(file))
-      setPinataUrl(result.pinataUrl)
-      setStep('form')
+      reader.readAsDataURL(file);
     } catch (error) {
+      console.error('Upload failed:', error);
       toast({
         title: "Upload Failed",
         description: "Failed to upload image to IPFS",
         variant: "destructive"
       })
-    } finally {
       setLoading(false)
     }
   }
