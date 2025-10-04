@@ -15,13 +15,15 @@ interface NFTCollectionFormProps {
   onClose: () => void
   baseImage: string // The generated/uploaded card image
   collectionNumber: number
+  cardId?: string | null // Optional: Card ID for linking NFT to physical card supply
 }
 
 export function NFTCollectionForm({ 
   onCollectionGenerated, 
   onClose, 
   baseImage,
-  collectionNumber 
+  collectionNumber,
+  cardId
 }: NFTCollectionFormProps) {
   const [formData, setFormData] = useState({
     name: '',
@@ -93,6 +95,34 @@ export function NFTCollectionForm({
       setResult(response)
       
       if (response.success && response.collectionAddress && response.codes) {
+        // Link card to NFT collection series (if cardId provided)
+        if (cardId) {
+          try {
+            console.log('🔗 Linking card to NFT collection...', { 
+              cardId, 
+              collectionAddress: response.collectionAddress 
+            })
+            
+            const { getSupabaseBrowserClient } = await import('@/lib/supabase-browser')
+            const supabase = getSupabaseBrowserClient()
+            
+            const { data, error } = await supabase.rpc('link_collection_and_card', {
+              p_collection_address: response.collectionAddress,
+              p_card_id: cardId
+            })
+            
+            if (error) {
+              console.error('❌ Failed to link card to NFT series:', error)
+            } else {
+              console.log('✅ Card linked to NFT series:', data)
+            }
+          } catch (error) {
+            console.error('❌ Error linking card to NFT series:', error)
+          }
+        } else {
+          console.log('ℹ️ No cardId provided - skipping series linking')
+        }
+        
         onCollectionGenerated(response.collectionAddress, response.codes)
       }
     } catch (error) {
