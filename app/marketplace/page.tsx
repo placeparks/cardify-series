@@ -135,17 +135,17 @@ function MarketplaceCard({
               </div>
             )}
 
-            {/* Remaining Supply Badge - Only show for featured cards with supply info */}
+            {/* Remaining Supply Badge - Show for ALL featured cards with supply info (visible to everyone) */}
             {listing.featured && listing.remaining_supply !== null && listing.remaining_supply !== undefined && (
               <div className="absolute top-11 left-2 z-10 pointer-events-none">
                 <Badge className={`${
                   listing.remaining_supply === 0 
-                    ? 'bg-red-500/90 text-white border-red-400' 
+                    ? 'bg-red-500/90 text-white border-red-400 animate-pulse' 
                     : listing.remaining_supply <= 5 
-                      ? 'bg-orange-500/90 text-white border-orange-400' 
-                      : 'bg-blue-500/90 text-white border-blue-400'
+                      ? 'bg-orange-500/90 text-white border-orange-400 animate-pulse' 
+                      : 'bg-cyan-500/90 text-white border-cyan-400'
                 } border-2 font-bold text-xs px-2 py-1 shadow-lg flex items-center gap-1`}>
-                  {listing.remaining_supply === 0 ? '❌' : '📦'} {listing.remaining_supply} Left
+                  {listing.remaining_supply === 0 ? '❌ SOLD OUT' : `⚡ ${listing.remaining_supply} LEFT`}
                 </Badge>
               </div>
             )}
@@ -220,7 +220,7 @@ function MarketplaceCard({
             } else {
               console.log('🔍 Featured badge NOT showing because:', {
                 featured: listing.featured,
-                isTrue: listing.featured === true,
+                hasValue: listing.featured !== undefined,
                 isTruthy: !!listing.featured
               })
               return null
@@ -532,24 +532,37 @@ function MarketplaceContent() {
     setTotalCount(count || 0)
 
     // Transform the data to match our ListingRow type
-    let rows: ListingRow[] = (data ?? []).map((item: any) => ({
-      id: item.id,
-      title: item.title,
-      description: item.description,
-      image_url: item.user_assets?.image_url || null,
-      price_cents: item.price_cents,
-      currency: item.currency,
-      seller_id: item.seller_id,
-      buyer_id: item.buyer_id,
-      status: item.status as 'active' | 'sold' | 'inactive',
-      is_active: item.status === 'active',
-      created_at: item.created_at,
-      categories: item.categories || [],
-      featured: item.featured || false, // Add the featured field!
-      asset_id: item.asset_id,
-      remaining_supply: item.user_assets?.series?.remaining_supply || null,
-      total_supply: item.user_assets?.series?.total_supply || null
-    }))
+    let rows: ListingRow[] = (data ?? []).map((item: any) => {
+      const row = {
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        image_url: item.user_assets?.image_url || null,
+        price_cents: item.price_cents,
+        currency: item.currency,
+        seller_id: item.seller_id,
+        buyer_id: item.buyer_id,
+        status: item.status as 'active' | 'sold' | 'inactive',
+        is_active: item.status === 'active',
+        created_at: item.created_at,
+        categories: item.categories || [],
+        featured: item.featured || false,
+        asset_id: item.asset_id,
+        remaining_supply: item.user_assets?.series?.remaining_supply || null,
+        total_supply: item.user_assets?.series?.total_supply || null
+      }
+      
+      // Debug log for featured cards with supply info
+      if (row.featured && row.remaining_supply !== null) {
+        console.log('📦 Featured card with supply:', {
+          title: row.title,
+          remaining_supply: row.remaining_supply,
+          total_supply: row.total_supply
+        })
+      }
+      
+      return row
+    })
 
     // If sorting by sales, fetch sale counts via API (to bypass RLS)
     if (sortBy === 'most_sold' || sortBy === 'best_selling_current') {
@@ -631,7 +644,7 @@ function MarketplaceContent() {
     loadListings()
     // Scroll to top when page changes (instant, no animation)
     window.scrollTo(0, 0)
-  }, [currentPage, q, selectedCategories, sortBy]) // Reload when page, search, categories, or sort changes
+  }, [loadListings, currentPage, q, selectedCategories, sortBy]) // Reload when page, search, categories, or sort changes
 
   const resultsText = useMemo(() => {
     if (loading) return 'Loading…'
