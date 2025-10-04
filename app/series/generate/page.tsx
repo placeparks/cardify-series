@@ -1460,7 +1460,24 @@ const burnFreeQuota = async () => {
           }
 
           setUploadedImageUrl(publicUrl ?? null);
-          setGeneratedCardId(imageRecordId ?? null); // Save card ID for NFT linking
+          
+          // Get the user_assets ID (not generated_images ID)
+          if (imageRecordId) {
+            try {
+              const { data: assetData } = await sb
+                .from('user_assets')
+                .select('id')
+                .eq('source_id', imageRecordId)
+                .single();
+              
+              setGeneratedCardId(assetData?.id ?? null);
+              console.log('💾 [Generate] Card ID for NFT linking:', assetData?.id);
+            } catch (error) {
+              console.error('Failed to get user_assets ID:', error);
+              setGeneratedCardId(null);
+            }
+          }
+          
           track("generate", { action: "upload_ok" }).catch(console.error); // Non-blocking
 
           // Show success toast with longer duration
