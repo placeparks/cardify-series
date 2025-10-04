@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 
 // Configure route to handle larger payloads
 export const runtime = 'nodejs'
@@ -72,6 +74,30 @@ export async function POST(req: NextRequest) {
       if (!uploadedFile) {
         return NextResponse.json(
           { error: 'File is required' },
+          { status: 400 }
+        )
+      }
+
+      // Check file size (10MB limit)
+      const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB in bytes
+      if (uploadedFile.size > MAX_FILE_SIZE) {
+        return NextResponse.json(
+          { 
+            error: 'File too large. Please upload an image under 10MB.',
+            details: {
+              fileSize: uploadedFile.size,
+              maxSize: MAX_FILE_SIZE,
+              sizeInMB: Math.round(uploadedFile.size / (1024 * 1024))
+            }
+          },
+          { status: 413 }
+        )
+      }
+
+      // Validate file type
+      if (!uploadedFile.type.startsWith('image/')) {
+        return NextResponse.json(
+          { error: 'Only image files are allowed' },
           { status: 400 }
         )
       }
