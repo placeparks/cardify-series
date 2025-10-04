@@ -227,19 +227,24 @@ export function FeaturedCardsSection() {
               {/* Action Button */}
               <Button 
                 asChild
-                className="w-full cyber-button"
+                className="w-full h-11 bg-transparent border border-cyber-cyan text-cyber-cyan hover:bg-cyber-cyan/10 transition-all duration-300 flex items-center justify-center gap-2"
                 disabled={series.remaining_supply === 0}
               >
-                <Link href={`/series/${series.id}`}>
+                <Link 
+                  href="https://tcg-psi.vercel.app/" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="flex items-center justify-center gap-2"
+                >
                   {series.remaining_supply === 0 ? (
                     <>
-                      <Clock className="w-4 h-4 mr-2" />
-                      Sold Out
+                      <Clock className="w-5 h-5" />
+                      SOLD OUT
                     </>
                   ) : (
                     <>
-                      <ShoppingCart className="w-4 h-4 mr-2" />
-                      View Series
+                      <ShoppingCart className="w-5 h-5" />
+                      VIEW SERIES
                     </>
                   )}
                 </Link>
