@@ -106,18 +106,48 @@ export function NFTCollectionForm({
             const { getSupabaseBrowserClient } = await import('@/lib/supabase-browser')
             const supabase = getSupabaseBrowserClient()
             
-            const { data, error } = await supabase.rpc('link_collection_and_card', {
+            // Step 1: Link card to series
+            const { data: linkData, error: linkError } = await supabase.rpc('link_collection_and_card', {
               p_collection_address: response.collectionAddress,
               p_card_id: cardId
             })
             
-            if (error) {
-              console.error('❌ Failed to link card to NFT series:', error)
+            if (linkError) {
+              console.error('❌ Failed to link card to NFT series:', linkError)
             } else {
-              console.log('✅ Card linked to NFT series:', data)
+              console.log('✅ Card linked to NFT series:', linkData)
+              
+              // Step 2: Auto-list the card in marketplace
+              const { data: assetData } = await supabase
+                .from('user_assets')
+                .select('title, series_id')
+                .eq('id', cardId)
+                .single()
+              
+              if (assetData?.series_id) {
+                const response = await fetch('/api/series/auto-list', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    asset_id: cardId,
+                    series_id: assetData.series_id,
+                    title: assetData.title || 'NFT-Backed Card',
+                    description: 'Limited edition NFT-backed physical card',
+                    price_cents: 900 // $9.00
+                  })
+                })
+                
+                if (!response.ok) {
+                  console.error('❌ Failed to auto-list card:', await response.text())
+                } else {
+                  console.log('✅ Card auto-listed in marketplace')
+                }
+              }
             }
           } catch (error) {
-            console.error('❌ Error linking card to NFT series:', error)
+            console.error('❌ Error linking/listing card:', error)
           }
         } else {
           console.log('ℹ️ No cardId provided - skipping series linking')
