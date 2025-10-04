@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "app/api/upload-to-pinata/route.ts": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
+  },
+  "build": {
+    "env": {
+      "SHARP_IGNORE_GLOBAL": "1"
+    }
+  }
+}
