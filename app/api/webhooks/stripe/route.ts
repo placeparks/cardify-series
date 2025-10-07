@@ -1033,14 +1033,33 @@ async function saveCompleteOrderDetails(session: Stripe.Checkout.Session, correl
   try {
     console.log('💾 Saving complete order details for session:', session.id);
     
-    // Extract complete data from sessiona
+    // Debug: Log available shipping data
+    console.log('🔍 Session shipping data:', {
+      shipping_details: session.shipping_details,
+      customer: session.customer,
+      customer_details: session.customer_details
+    });
+    
+    // Extract complete data from session
+    // Note: Shipping address might be in session.shipping_details or customer.shipping
+    const shippingAddress = session.shipping_details?.address || 
+                           (session.customer && typeof session.customer === 'object' && 'shipping' in session.customer 
+                            ? (session.customer as any).shipping?.address 
+                            : null);
+    
     const orderData = {
       stripe_session_id: session.id,
       payment_intent_id: session.payment_intent,
       customer_email: session.customer_details?.email || session.customer_email,
       customer_name: session.customer_details?.name,
       customer_phone: session.customer_details?.phone,
-      shipping_address: session.shipping_details?.address,
+      shipping_address: shippingAddress || {
+        line1: 'Address not collected',
+        city: 'Unknown',
+        state: 'Unknown',
+        postal_code: '00000',
+        country: 'US'
+      },
       billing_address: session.customer_details?.address,
       total_amount_cents: session.amount_total,
       currency: session.currency,
@@ -1055,7 +1074,7 @@ async function saveCompleteOrderDetails(session: Stripe.Checkout.Session, correl
       display_case_quantity: parseInt(session.metadata?.displayCaseQuantity || '0'),
       image_url: session.metadata?.custom_image_url,
       original_filename: session.metadata?.original_filename,
-      shipping_country: session.shipping_details?.address?.country,
+      shipping_country: shippingAddress?.country || 'US',
       shipping_cost_cents: session.shipping_cost?.amount_total,
       shipping_rate_id: session.shipping_cost?.shipping_rate,
       status: 'paid',
@@ -1069,7 +1088,9 @@ async function saveCompleteOrderDetails(session: Stripe.Checkout.Session, correl
       customerEmail: orderData.customer_email,
       totalAmountCents: orderData.total_amount_cents,
       quantity: orderData.quantity,
-      hasShippingAddress: !!orderData.shipping_address
+      hasShippingAddress: !!orderData.shipping_address,
+      shippingAddress: orderData.shipping_address,
+      sessionShippingDetails: session.shipping_details
     });
 
     // Save to database
@@ -1080,6 +1101,14 @@ async function saveCompleteOrderDetails(session: Stripe.Checkout.Session, correl
       .single();
 
     if (error) {
+      console.error('❌ Database error details:', {
+        error: error,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      
       logError(
         ErrorCategory.DATABASE,
         'Failed to save order details',
