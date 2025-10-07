@@ -139,6 +139,8 @@ export async function uploadToSupabase(
       storage_path: storagePath,
       file_size_bytes: srcFile.size ?? null,
       mime_type: mime,
+      featured: opts.metadata?.featured || false, // Add featured flag
+      series_id: opts.metadata?.series_id || null, // Add series_id
       generation_params: {
         model: opts.metadata?.model,
         style: opts.metadata?.style,
@@ -159,6 +161,8 @@ export async function uploadToSupabase(
       storage_path: storagePath,
       file_size_bytes: srcFile.size ?? null,
       mime_type: mime,
+      featured: opts.metadata?.featured || false, // Add featured flag
+      series_id: opts.metadata?.series_id || null, // Add series_id
       metadata: {
         timestamp: new Date().toISOString(),
         ...(opts.metadata || {})
@@ -245,6 +249,39 @@ export async function uploadToSupabase(
     // non-fatal
   }
 
+  // ── 6) Auto-create marketplace listing for featured cards ──
+  if (rec?.id && opts.metadata?.featured && opts.metadata?.series_id) {
+    try {
+      console.log('🎯 Auto-creating marketplace listing for featured card:', {
+        assetId: rec.id,
+        seriesId: opts.metadata.series_id,
+        title: opts.metadata.title || 'Featured Card'
+      });
+
+      const response = await fetch('/api/series/auto-list', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          asset_id: rec.id,
+          series_id: opts.metadata.series_id,
+          title: opts.metadata.title || 'Featured Card',
+          description: opts.metadata.title || 'Featured Card',
+          price_cents: 900 // $9.00 for featured cards
+        })
+      });
+
+      if (response.ok) {
+        console.log('✅ Auto-listing created successfully');
+      } else {
+        console.warn('⚠️ Auto-listing failed:', await response.text());
+      }
+    } catch (error) {
+      console.warn('⚠️ Auto-listing error (non-fatal):', error);
+    }
+  }
+
   return { 
     success: true, 
     publicUrl, 
@@ -260,11 +297,17 @@ export async function uploadToSupabase(
 export async function uploadUserImage(
   file: Blob | File,
   customPath?: string,
-  metadata?: Record<string, any>
+  metadata?: Record<string, any>,
+  featured?: boolean,
+  seriesId?: string
 ): Promise<UploadResult> {
   return uploadToSupabase(file, customPath, {
     isGenerated: false,
-    metadata
+    metadata: {
+      ...metadata,
+      featured: featured || false,
+      series_id: seriesId || null
+    }
   });
 }
 
@@ -276,7 +319,9 @@ export async function uploadGeneratedImage(
   prompt?: string,
   generationParams?: Record<string, any>,
   metadata?: Record<string, any>,
-  title?: string
+  title?: string,
+  featured?: boolean,
+  seriesId?: string
 ): Promise<UploadResult> {
   return uploadToSupabase(file, undefined, {
     isGenerated: true,
@@ -285,6 +330,8 @@ export async function uploadGeneratedImage(
       title, // Pass the title to be saved in the database
       generation_params: generationParams,
       is_ai_generation: true,
+      featured: featured || false, // Add featured flag
+      series_id: seriesId || null,
       ...metadata
     }
   });
