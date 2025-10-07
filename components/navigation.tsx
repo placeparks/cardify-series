@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { ShoppingCart, Sparkles, Upload, Store, ChevronDown, Coins, User, LogOut, LogIn, Shield, BarChart3, Users, Layers } from "lucide-react"
+import { ShoppingCart, Sparkles, Upload, Store, ChevronDown, Coins, User, LogOut, LogIn, Layers } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect, useCallback } from "react"
 import { useNavigationVisibility } from "@/hooks/use-navigation-visibility"
@@ -36,46 +36,12 @@ export function Navigation() {
   const [credits, setCredits] = useState<number>(0)
   const [freeGenerationsUsed, setFreeGenerationsUsed] = useState<number>(0)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [adminCheckLoading, setAdminCheckLoading] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
 
   const isVisible = useNavigationVisibility()
   const { getItemCount } = useCart()
   const itemCount = getItemCount()
 
-  // Check if user is admin
-  const checkAdminStatus = useCallback(async (userId: string) => {
-    if (!userId) return
-    
-    console.log('🔍 Navigation: Starting admin check for user:', userId)
-    setAdminCheckLoading(true)
-    try {
-      const supabase = getSupabaseBrowserClient()
-      console.log('🔍 Navigation: Querying admins table for user_id:', userId)
-      
-      const { data, error } = await supabase
-        .from('admins')
-        .select('user_id')
-        .eq('user_id', userId)
-        .maybeSingle()
-      
-      console.log('🔍 Navigation: Admin check result:', { data, error, userId })
-      
-      if (!error && data) {
-        console.log('🔍 User is admin:', userId)
-        setIsAdmin(true)
-      } else {
-        console.log('🔍 User is not admin:', userId, error)
-        setIsAdmin(false)
-      }
-    } catch (error) {
-      console.error('❌ Error checking admin status:', error)
-      setIsAdmin(false)
-    } finally {
-      setAdminCheckLoading(false)
-    }
-  }, [])
 
   // Body scroll lock when mobile menu is open
   useEffect(() => {
@@ -109,15 +75,6 @@ export function Navigation() {
     return () => sub.subscription.unsubscribe()
   }, [])
 
-  // Check admin status when user changes
-  useEffect(() => {
-    if (user?.id) {
-      console.log('🔍 Navigation: Checking admin status for user:', user.id)
-      checkAdminStatus(user.id)
-    } else {
-      setIsAdmin(false)
-    }
-  }, [user?.id, checkAdminStatus])
 
   // fetch credits directly from profiles table
   const fetchCredits = useCallback(async () => {
@@ -357,41 +314,6 @@ export function Navigation() {
                     </Link>
                   </DropdownMenuItem>
                   
-                  {/* Admin Section */}
-                  {isAdmin && adminCheckLoading && (
-                    <>
-                      <DropdownMenuSeparator className="bg-gradient-to-r from-transparent via-cyber-pink/30 to-transparent my-2" />
-                      <div className="px-4 py-2 text-xs font-mono text-cyber-pink/60 uppercase tracking-wider">Admin</div>
-                      <div className="px-4 py-3 text-cyber-pink/60 font-mono text-sm flex items-center gap-3">
-                        <div className="w-4 h-4 border-2 border-cyber-pink/40 border-t-cyber-pink rounded-full animate-spin"></div>
-                        Checking access...
-                      </div>
-                    </>
-                  )}
-                  {isAdmin && !adminCheckLoading && (
-                    <>
-                      <DropdownMenuSeparator className="bg-gradient-to-r from-transparent via-cyber-pink/30 to-transparent my-2" />
-                      <div className="px-4 py-2 text-xs font-mono text-cyber-pink/60 uppercase tracking-wider">Admin</div>
-                      <DropdownMenuItem asChild className="focus:bg-cyber-pink/20 focus:text-cyber-pink cursor-pointer transition-colors duration-200">
-                        <Link href="/admin" className="flex items-center gap-3 px-4 py-3 text-cyber-pink font-mono text-sm">
-                          <Shield className="w-4 h-4" />
-                          Dashboard
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild className="focus:bg-cyber-pink/20 focus:text-cyber-pink cursor-pointer transition-colors duration-200">
-                        <Link href="/admin/duplicates" className="flex items-center gap-3 px-4 py-3 text-cyber-pink font-mono text-sm">
-                          <Users className="w-4 h-4" />
-                          Review Duplicates
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild className="focus:bg-cyber-pink/20 focus:text-cyber-pink cursor-pointer transition-colors duration-200">
-                        <Link href="/admin/manage" className="flex items-center gap-3 px-4 py-3 text-cyber-pink font-mono text-sm">
-                          <BarChart3 className="w-4 h-4" />
-                          Manage Users
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
                   
                   <DropdownMenuSeparator className="bg-gradient-to-r from-transparent via-cyber-cyan/30 to-transparent my-2" />
                   <DropdownMenuItem onClick={signOutUser} className="focus:bg-cyber-pink/20 focus:text-cyber-pink cursor-pointer transition-colors duration-200 px-4 py-3 font-mono text-sm flex items-center gap-3">
@@ -542,53 +464,6 @@ export function Navigation() {
                     </Button>
                   </Link>
 
-                  {/* Admin Section - Mobile */}
-                  {isAdmin && adminCheckLoading && (
-                    <>
-                      <div className="border-t border-cyber-pink/20 my-3"></div>
-                      <div className="text-xs font-mono text-cyber-pink/60 uppercase tracking-wider mb-2">Admin</div>
-                      <div className="w-full bg-cyber-dark border border-cyber-pink/40 text-cyber-pink/60 py-3 px-4 rounded flex items-center gap-3">
-                        <div className="w-4 h-4 border-2 border-cyber-pink/40 border-t-cyber-pink rounded-full animate-spin"></div>
-                        Checking access...
-                      </div>
-                    </>
-                  )}
-                  {isAdmin && !adminCheckLoading && (
-                    <>
-                      <div className="border-t border-cyber-pink/20 my-3"></div>
-                      <div className="text-xs font-mono text-cyber-pink/60 uppercase tracking-wider mb-2">Admin</div>
-                      
-                      <Link href="/admin" className="block">
-                        <Button
-                          onClick={() => setIsMenuOpen(false)}
-                          className="w-full bg-cyber-dark border border-cyber-pink/40 text-cyber-pink hover:bg-cyber-pink/10 tracking-wider justify-start"
-                        >
-                          <Shield className="w-4 h-4 mr-3" />
-                          Dashboard
-                        </Button>
-                      </Link>
-
-                      <Link href="/admin/duplicates" className="block">
-                        <Button
-                          onClick={() => setIsMenuOpen(false)}
-                          className="w-full bg-cyber-dark border border-cyber-pink/40 text-cyber-pink hover:bg-cyber-pink/10 tracking-wider justify-start"
-                        >
-                          <Users className="w-4 h-4 mr-3" />
-                          Review Duplicates
-                        </Button>
-                      </Link>
-
-                      <Link href="/admin/manage" className="block">
-                        <Button
-                          onClick={() => setIsMenuOpen(false)}
-                          className="w-full bg-cyber-dark border border-cyber-pink/40 text-cyber-pink hover:bg-cyber-pink/10 tracking-wider justify-start"
-                        >
-                          <BarChart3 className="w-4 h-4 mr-3" />
-                          Manage Users
-                        </Button>
-                      </Link>
-                    </>
-                  )}
 
                   <Button
                     onClick={() => {
