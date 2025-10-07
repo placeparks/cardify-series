@@ -51,7 +51,7 @@ export default function NFTCollectionPage() {
     description: '',
     maxSupply: 100,
     mintPrice: 0,
-    royaltyBps: 250
+    royaltyBps: 500
   })
   const [collectionAddress, setCollectionAddress] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
