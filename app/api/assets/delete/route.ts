@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
           actualTable = "uploaded_images"
           const { data: uploadedRow, error: uploadedErr } = await supabase
             .from("uploaded_images")
-            .select("id, user_id, storage_path, image_url")
+            .select("id, user_id, storage_path, image_url, original_filename")
             .eq("user_id", user.id)
             .eq("id", source_id)
             .single()
@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
           actualTable = "generated_images"
           const { data: generatedRow, error: generatedErr } = await supabase
             .from("generated_images")
-            .select("id, user_id, storage_path, image_url")
+            .select("id, user_id, storage_path, image_url, original_filename")
             .eq("user_id", user.id)
             .eq("id", source_id)
             .single()
@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
       // Direct table access
       const { data: directRow, error: readErr } = await supabase
         .from(table)
-        .select("id, user_id, storage_path, image_url")
+        .select("id, user_id, storage_path, image_url, original_filename")
         .eq("user_id", user.id)
         .eq("id", id)
         .single()
@@ -230,7 +230,7 @@ export async function POST(req: NextRequest) {
         } else if (fileData) {
           // Create new path for deleted images using original_asset_id
           // Use the original filename to preserve the original naming
-          const originalFileName = row.file_name || 'image.jpg'
+          const originalFileName = row.original_filename || 'image.jpg'
           const newPath = `${source_id}/${originalFileName}`
           
           // Upload to deleted-images bucket
