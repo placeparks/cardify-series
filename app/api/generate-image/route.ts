@@ -16,10 +16,10 @@ interface ApiError {
   type?: string
 }
 
-// Initialize OpenAI client with extended timeout
+// Initialize OpenAI client with reduced timeout and memory usage
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  timeout: 300000, // 5 minutes (300 seconds) - though OpenAI may timeout at ~180s
+  timeout: 120000, // 2 minutes - reduced from 5 minutes
   maxRetries: 0, // Disable automatic retries to avoid duplicate requests
 })
 
@@ -229,23 +229,21 @@ export async function POST(req: NextRequest) {
           throw new Error('No reference image provided')
         }
         
-        // Use the edit endpoint for image-to-image generation
+        // Use the edit endpoint for image-to-image generation with memory optimization
         return await openai.images.edit({
-          model: "gpt-image-1",
+          model: "dall-e-2", // Use DALL-E 2 instead of GPT-4 Vision for lower memory usage
           image: imageFile,
           prompt: editPrompt,
-          size: "1024x1536", // Portrait format for trading cards
-          quality: quality,
-          // @ts-expect-error - input_fidelity is a new parameter not yet in TypeScript types
-          input_fidelity: maintainLikeness && quality === "high" ? "high" : "low", // Use low fidelity when not maintaining likeness or lower quality
+          size: "1024x1024", // Square format uses less memory than portrait
+          n: 1, // Generate only 1 image to reduce memory
         })
       } else {
-        // Normal text-to-image generation
+        // Normal text-to-image generation with memory optimization
         return await openai.images.generate({
-          model: "gpt-image-1",
+          model: "dall-e-2", // Use DALL-E 2 for lower memory usage
           prompt: prompt,
-          size: "1024x1536", // Portrait format - closest to trading card ratio (2.5:3.5)
-          quality: quality,
+          size: "1024x1024", // Square format uses less memory
+          n: 1, // Generate only 1 image
         })
       }
     }
@@ -348,6 +346,18 @@ export async function POST(req: NextRequest) {
           // Fall through to original error handling for non-timeout errors
         }
       }
+      // Handle "terminated" error specifically
+      if (error?.message === 'terminated' || error?.error?.message === 'terminated') {
+        return NextResponse.json(
+          { 
+            error: 'Image generation was terminated. This may be due to server load or timeout. Please try again with a simpler prompt.',
+            code: 'GENERATION_TERMINATED',
+            details: 'The request was terminated before completion. Try reducing prompt complexity.'
+          },
+          { status: 503 }
+        )
+      }
+      
       // Enhanced error logging to debug the issue
       console.error('OpenAI API error - Full details:')
       console.error('Error object:', JSON.stringify(error, null, 2))
