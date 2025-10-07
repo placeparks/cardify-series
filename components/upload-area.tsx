@@ -151,11 +151,9 @@ export function UploadArea({
 
               const result = await response.json();
               
-              // Update progress
+              // Update progress - don't send as File object
               const progress = Math.round(((i + 1) / chunks.length) * 100);
-              if (onFileUpload) {
-                onFileUpload(new File([progress.toString()], 'progress', { type: 'text/plain' }));
-              }
+              // Progress updates should be handled separately, not as File objects
 
               // If this was the last chunk and upload is complete
               if (result.pinataUrl) {
@@ -183,6 +181,8 @@ export function UploadArea({
     },
     [onFileUpload, disabled],
   )
+
+                    {/*{ type: 'application/json' }*/}
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
