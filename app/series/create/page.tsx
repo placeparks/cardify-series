@@ -153,7 +153,7 @@ export default function CreateSeriesPage() {
             {/* Header */}
             <div className="mb-8 text-center">
               <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-wider mb-4">
-                Create Featured Series
+                Create Series
               </h1>
               <p className="text-gray-400 text-lg">
                 Set up your limited edition card series details
