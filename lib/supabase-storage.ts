@@ -93,9 +93,30 @@ export async function uploadToSupabase(
   // ── build storage path ──
   const srcFile = file as File;
   const name = srcFile.name || "uploaded";
-  const mime = srcFile.type || "application/octet-stream";
+  let mime = srcFile.type || "application/octet-stream";
+  
+  // Validate that this is actually an image file
+  if (!mime.startsWith('image/') && mime !== 'application/octet-stream') {
+    console.error('Invalid file type detected:', mime, 'for file:', name);
+    throw new Error(`Invalid file type: ${mime}. Only image files are allowed.`);
+  }
+  
+  // If mime type is application/octet-stream, try to detect from filename
+  if (mime === 'application/octet-stream') {
+    const fileExt = name.split('.').pop()?.toLowerCase();
+    if (fileExt === 'jpg' || fileExt === 'jpeg') {
+      mime = 'image/jpeg';
+    } else if (fileExt === 'png') {
+      mime = 'image/png';
+    } else if (fileExt === 'webp') {
+      mime = 'image/webp';
+    } else if (fileExt === 'gif') {
+      mime = 'image/gif';
+    }
+  }
+  
   const extFromMime = mimeToExt[mime];
-  const ext = (extFromMime || (name.includes(".") ? name.split(".").pop()! : "bin"))
+  const ext = (extFromMime || (name.includes(".") ? name.split(".").pop()! : "jpg"))
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
 
