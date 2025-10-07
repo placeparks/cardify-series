@@ -47,142 +47,21 @@ export function UploadArea({
     return null
   }
 
-  const compressImage = async (file: File): Promise<File> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Failed to get canvas context'));
-          return;
-        }
-
-        // Calculate new dimensions (max 1600px width/height)
-        let width = img.width;
-        let height = img.height;
-        const maxDimension = 1600;
-
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round((height * maxDimension) / width);
-            width = maxDimension;
-          } else {
-            width = Math.round((width * maxDimension) / height);
-            height = maxDimension;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
-
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              reject(new Error('Failed to compress image'));
-              return;
-            }
-            const compressedFile = new File([blob], file.name, {
-              type: 'image/jpeg',
-              lastModified: Date.now(),
-            });
-            resolve(compressedFile);
-          },
-          'image/jpeg',
-          0.8 // compression quality
-        );
-      };
-      img.onerror = () => reject(new Error('Failed to load image'));
-    });
-  };
-
   const handleFile = useCallback(
-    async (file: File) => {
-      if (disabled) return;
+    (file: File) => {
+      if (disabled) return
 
-      const validationError = validateFile(file);
+      const validationError = validateFile(file)
       if (validationError) {
-        setError(validationError);
-        return;
+        setError(validationError)
+        return
       }
 
-      try {
-        setError(null);
-        const compressedFile = await compressImage(file);
-        console.log('Original size:', (file.size / 1024 / 1024).toFixed(2) + 'MB');
-        console.log('Compressed size:', (compressedFile.size / 1024 / 1024).toFixed(2) + 'MB');
-
-        // Generate a unique file ID
-        const fileId = Math.random().toString(36).substring(2) + Date.now().toString(36);
-
-        // Convert file to base64
-        const reader = new FileReader();
-        reader.onload = async () => {
-          const base64Data = (reader.result as string).split(',')[1]; // Remove data URL prefix
-          
-          // Split into 2MB chunks (to stay under Vercel's limit)
-          const chunkSize = 2 * 1024 * 1024; // 2MB
-          const chunks = [];
-          for (let i = 0; i < base64Data.length; i += chunkSize) {
-            chunks.push(base64Data.slice(i, i + chunkSize));
-          }
-
-          try {
-            // Upload chunks
-            for (let i = 0; i < chunks.length; i++) {
-              const response = await fetch('/api/upload-chunk', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  chunk: chunks[i],
-                  chunkIndex: i,
-                  totalChunks: chunks.length,
-                  fileId
-                })
-              });
-
-              if (!response.ok) {
-                throw new Error('Chunk upload failed');
-              }
-
-              const result = await response.json();
-              
-              // Update progress - don't send as File object
-              const progress = Math.round(((i + 1) / chunks.length) * 100);
-              // Progress updates should be handled separately, not as File objects
-
-              // If this was the last chunk and upload is complete
-              if (result.pinataUrl) {
-                // Create a mock File object with the Pinata URL
-                const mockFile = new File(
-                  [JSON.stringify({ url: result.pinataUrl })],
-                  file.name,
-                  { type: 'image/jpeg' } // Use image MIME type for storage compatibility
-                );
-                onFileUpload(mockFile);
-                return;
-              }
-            }
-          } catch (uploadError) {
-            console.error('Upload failed:', uploadError);
-            setError('Failed to upload image. Please try again.');
-          }
-        };
-        
-        reader.readAsDataURL(compressedFile);
-      } catch (err) {
-        console.error('Compression failed:', err);
-        setError('Failed to process image. Please try a different file.');
-      }
+      setError(null)
+      onFileUpload(file)
     },
     [onFileUpload, disabled],
   )
-
-                    {/*{ type: 'application/json' }*/}
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
