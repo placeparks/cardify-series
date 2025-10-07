@@ -228,10 +228,10 @@ export async function POST(req: NextRequest) {
         if (downloadError) {
           console.error('❌ Error downloading file for preservation:', downloadError)
         } else if (fileData) {
-          // Create new path for deleted images using original_asset_id
-          // Use the original filename to preserve the original naming
+          // Use the user_assets ID as filename to avoid conflicts
+          // The database trigger will create the deleted_images record with this ID
           const originalFileName = row.original_filename || 'image.jpg'
-          const newPath = `${source_id}/${originalFileName}`
+          const newPath = `${id}.jpg` // Use user_assets ID as filename
           
           // Upload to deleted-images bucket
           const { error: uploadError } = await admin.storage
