@@ -93,30 +93,9 @@ export async function uploadToSupabase(
   // ── build storage path ──
   const srcFile = file as File;
   const name = srcFile.name || "uploaded";
-  let mime = srcFile.type || "application/octet-stream";
-  
-  // Validate that this is actually an image file
-  if (!mime.startsWith('image/') && mime !== 'application/octet-stream') {
-    console.error('Invalid file type detected:', mime, 'for file:', name);
-    throw new Error(`Invalid file type: ${mime}. Only image files are allowed.`);
-  }
-  
-  // If mime type is application/octet-stream, try to detect from filename
-  if (mime === 'application/octet-stream') {
-    const fileExt = name.split('.').pop()?.toLowerCase();
-    if (fileExt === 'jpg' || fileExt === 'jpeg') {
-      mime = 'image/jpeg';
-    } else if (fileExt === 'png') {
-      mime = 'image/png';
-    } else if (fileExt === 'webp') {
-      mime = 'image/webp';
-    } else if (fileExt === 'gif') {
-      mime = 'image/gif';
-    }
-  }
-  
+  const mime = srcFile.type || "application/octet-stream";
   const extFromMime = mimeToExt[mime];
-  const ext = (extFromMime || (name.includes(".") ? name.split(".").pop()! : "jpg"))
+  const ext = (extFromMime || (name.includes(".") ? name.split(".").pop()! : "bin"))
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "");
 
@@ -160,8 +139,6 @@ export async function uploadToSupabase(
       storage_path: storagePath,
       file_size_bytes: srcFile.size ?? null,
       mime_type: mime,
-      featured: opts.metadata?.featured || false, // Add featured flag
-      series_id: opts.metadata?.series_id || null, // Add series_id
       generation_params: {
         model: opts.metadata?.model,
         style: opts.metadata?.style,
@@ -182,8 +159,6 @@ export async function uploadToSupabase(
       storage_path: storagePath,
       file_size_bytes: srcFile.size ?? null,
       mime_type: mime,
-      featured: opts.metadata?.featured || false, // Add featured flag
-      series_id: opts.metadata?.series_id || null, // Add series_id
       metadata: {
         timestamp: new Date().toISOString(),
         ...(opts.metadata || {})
@@ -270,39 +245,6 @@ export async function uploadToSupabase(
     // non-fatal
   }
 
-  // ── 6) Auto-create marketplace listing for featured cards ──
-  if (rec?.id && opts.metadata?.featured && opts.metadata?.series_id) {
-    try {
-      console.log('🎯 Auto-creating marketplace listing for featured card:', {
-        assetId: rec.id,
-        seriesId: opts.metadata.series_id,
-        title: opts.metadata.title || 'Featured Card'
-      });
-
-      const response = await fetch('/api/series/auto-list', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          asset_id: rec.id,
-          series_id: opts.metadata.series_id,
-          title: opts.metadata.title || 'Featured Card',
-          description: opts.metadata.title || 'Featured Card',
-          price_cents: 900 // $9.00 for featured cards
-        })
-      });
-
-      if (response.ok) {
-        console.log('✅ Auto-listing created successfully');
-      } else {
-        console.warn('⚠️ Auto-listing failed:', await response.text());
-      }
-    } catch (error) {
-      console.warn('⚠️ Auto-listing error (non-fatal):', error);
-    }
-  }
-
   return { 
     success: true, 
     publicUrl, 
@@ -318,17 +260,11 @@ export async function uploadToSupabase(
 export async function uploadUserImage(
   file: Blob | File,
   customPath?: string,
-  metadata?: Record<string, any>,
-  featured?: boolean,
-  seriesId?: string
+  metadata?: Record<string, any>
 ): Promise<UploadResult> {
   return uploadToSupabase(file, customPath, {
     isGenerated: false,
-    metadata: {
-      ...metadata,
-      featured: featured || false,
-      series_id: seriesId || null
-    }
+    metadata
   });
 }
 
@@ -340,9 +276,7 @@ export async function uploadGeneratedImage(
   prompt?: string,
   generationParams?: Record<string, any>,
   metadata?: Record<string, any>,
-  title?: string,
-  featured?: boolean,
-  seriesId?: string
+  title?: string
 ): Promise<UploadResult> {
   return uploadToSupabase(file, undefined, {
     isGenerated: true,
@@ -351,8 +285,6 @@ export async function uploadGeneratedImage(
       title, // Pass the title to be saved in the database
       generation_params: generationParams,
       is_ai_generation: true,
-      featured: featured || false, // Add featured flag
-      series_id: seriesId || null,
       ...metadata
     }
   });
