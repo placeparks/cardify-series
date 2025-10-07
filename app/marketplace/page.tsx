@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { Search, User as UserIcon, ChevronLeft, ChevronRight, Link2, Trash2, Edit, Shield, ArrowUpDown, Star } from "lucide-react"
+import { Search, User as UserIcon, ChevronLeft, ChevronRight, Link2, ArrowUpDown, Star } from "lucide-react"
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -80,14 +80,6 @@ function MarketplaceCard({
   onCancel: (l: ListingRow) => Promise<void>
   onBuy: (l: ListingRow) => void
   onView: (l: ListingRow) => void
-  isAdmin: boolean
-  editingId: string | null
-  editTitle: string
-  onAdminDelete: (l: ListingRow) => void
-  onAdminRename: (l: ListingRow) => void
-  onStartEdit: (l: ListingRow) => void
-  onCancelEdit: () => void
-  onEditTitleChange: (title: string) => void
   priority?: boolean
 }) {
   const { toast } = useToast()
@@ -289,69 +281,6 @@ function MarketplaceCard({
             </Button>
           )}
           
-          {/* Admin controls */}
-          {isAdmin && (
-            <div className="border-t border-cyber-cyan/20 pt-2 mt-2">
-              <div className="flex items-center gap-1 mb-2">
-                <Shield className="w-3 h-3 text-cyber-cyan" />
-                <span className="text-xs text-cyber-cyan/80 font-medium">Admin Controls</span>
-              </div>
-              
-              {editingId === listing.id ? (
-                <div className="space-y-2">
-                  <div>
-                    <label className="text-xs text-gray-400 block mb-1">Title</label>
-                    <Input
-                      value={editTitle}
-                      onChange={(e) => onEditTitleChange(e.target.value)}
-                      placeholder="Listing title"
-                      className="text-xs h-7"
-                    />
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      size="sm"
-                      onClick={() => onAdminRename(listing)}
-                      className="bg-green-600 hover:bg-green-700 text-xs h-7 flex-1"
-                    >
-                      Save
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={onCancelEdit}
-                      className="text-xs h-7 flex-1"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex gap-1">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onStartEdit(listing)}
-                    disabled={listing.status === 'sold'}
-                    className="text-xs h-7 flex-1"
-                  >
-                    <Edit className="w-3 h-3 mr-1" />
-                    Rename
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => onAdminDelete(listing)}
-                    disabled={listing.status === 'sold'}
-                    className="text-xs h-7 flex-1"
-                  >
-                    <Trash2 className="w-3 h-3 mr-1" />
-                    Unlist
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>
@@ -368,7 +297,6 @@ function MarketplaceContent() {
   const { toast } = useToast()
 
   const [uid, setUid] = useState<string | null>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
   const [listings, setListings] = useState<ListingRow[]>([])
   const [q, setQ] = useState('')
@@ -381,9 +309,6 @@ function MarketplaceContent() {
   const ITEMS_PER_PAGE = 30
   const currentPage = Number(searchParams.get('page')) || 1
   
-  // Admin edit state
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editTitle, setEditTitle] = useState('')
   
   // Detail modal state
   const [detailModalOpen, setDetailModalOpen] = useState(false)
@@ -401,30 +326,10 @@ function MarketplaceContent() {
       if (!mounted) return
       setUid(session?.user?.id ?? null)
       
-      // Check admin status
-      if (session?.user?.id) {
-        const { data: adminCheck } = await supabase
-          .from('admins')
-          .select('id')
-          .eq('user_id', session.user.id)
-          .single()
-        setIsAdmin(!!adminCheck)
-      }
     })()
     const { data: sub } = supabase.auth.onAuthStateChange(async (_e, session) => {
       setUid(session?.user?.id ?? null)
       
-      // Check admin status on auth change
-      if (session?.user?.id) {
-        const { data: adminCheck } = await supabase
-          .from('admins')
-          .select('id')
-          .eq('user_id', session.user.id)
-          .single()
-        setIsAdmin(!!adminCheck)
-      } else {
-        setIsAdmin(false)
-      }
     })
     return () => {
       mounted = false
@@ -800,99 +705,6 @@ const handleBuy = useCallback(
     trackView(listing)
   }, [trackView])
 
-  // Admin functions
-  const handleAdminDelete = useCallback(async (listing: ListingRow) => {
-    if (!confirm(`Are you sure you want to unlist "${listing.title}"? This will remove it from the marketplace.`)) {
-      return
-    }
-
-    try {
-      const response = await fetch(`/api/marketplace/unlist?id=${listing.id}`, {
-        method: 'PUT',
-        credentials: 'include' // 🔑 Send cookies for authentication
-      })
-
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: `Listing "${listing.title}" unlisted successfully`
-        })
-        setListings(prev => prev.filter(l => l.id !== listing.id))
-      } else {
-        const error = await response.json()
-        toast({
-          title: "Error",
-          description: error.error || "Failed to unlist listing",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to unlist listing",
-        variant: "destructive"
-      })
-    }
-  }, [toast])
-
-  const handleAdminRename = useCallback(async (listing: ListingRow) => {
-    if (!editTitle.trim()) {
-      toast({
-        title: "Error",
-        description: "Title cannot be empty",
-        variant: "destructive"
-      })
-      return
-    }
-
-    try {
-      const response = await fetch('/api/marketplace/rename', {
-        method: 'PUT',
-        credentials: 'include', // 🔑 Send cookies for authentication
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          id: listing.id,
-          title: editTitle.trim()
-        })
-      })
-
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Listing updated successfully"
-        })
-        setEditingId(null)
-        setEditTitle('')
-        // Refresh listings
-        loadListings()
-      } else {
-        const error = await response.json()
-        toast({
-          title: "Error",
-          description: error.error || "Failed to update listing",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update listing",
-        variant: "destructive"
-      })
-    }
-  }, [editTitle, toast, loadListings])
-
-  const startEdit = useCallback((listing: ListingRow) => {
-    setEditingId(listing.id)
-    setEditTitle(listing.title)
-  }, [])
-
-  const cancelEdit = useCallback(() => {
-    setEditingId(null)
-    setEditTitle('')
-  }, [])
 
   // Navigation function that updates URL
   const navigateToPage = useCallback((page: number) => {
@@ -1055,14 +867,6 @@ const handleBuy = useCallback(
                 onCancel={cancelListing}
                 onBuy={handleBuy}
                 onView={openDetailModal}
-                isAdmin={isAdmin}
-                editingId={editingId}
-                editTitle={editTitle}
-                onAdminDelete={handleAdminDelete}
-                onAdminRename={handleAdminRename}
-                onStartEdit={startEdit}
-                onCancelEdit={cancelEdit}
-                onEditTitleChange={setEditTitle}
                 priority={index < 10}
               />
             ))}
