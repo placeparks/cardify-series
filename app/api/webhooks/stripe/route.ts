@@ -1027,57 +1027,85 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Update order details when payment is completed
+ * Save complete order details when payment is completed
  */
-async function updateOrderDetailsOnPayment(session: Stripe.Checkout.Session, correlationId: string) {
+async function saveCompleteOrderDetails(session: Stripe.Checkout.Session, correlationId: string) {
   try {
-    const { data: orderDetails, error: fetchError } = await supabase
+    console.log('💾 Saving complete order details for session:', session.id);
+    
+    // Extract complete data from sessiona
+    const orderData = {
+      stripe_session_id: session.id,
+      payment_intent_id: session.payment_intent,
+      customer_email: session.customer_details?.email || session.customer_email,
+      customer_name: session.customer_details?.name,
+      customer_phone: session.customer_details?.phone,
+      shipping_address: session.shipping_details?.address,
+      billing_address: session.customer_details?.address,
+      total_amount_cents: session.amount_total,
+      currency: session.currency,
+      quantity: parseInt(session.metadata?.quantity || '1'),
+      product_type: session.metadata?.isMarketplace === 'true' ? 'marketplace' : 'cart',
+      product_details: {
+        line_items: session.line_items?.data || [],
+        metadata: session.metadata
+      },
+      card_finish: session.metadata?.cardFinish,
+      include_display_case: session.metadata?.includeDisplayCase === 'true',
+      display_case_quantity: parseInt(session.metadata?.displayCaseQuantity || '0'),
+      image_url: session.metadata?.custom_image_url,
+      original_filename: session.metadata?.original_filename,
+      shipping_country: session.shipping_details?.address?.country,
+      shipping_cost_cents: session.shipping_cost?.amount_total,
+      shipping_rate_id: session.shipping_cost?.shipping_rate,
+      status: 'paid',
+      payment_status: 'succeeded',
+      metadata: session.metadata || {},
+      stripe_metadata: session.metadata || {}
+    };
+
+    console.log('📤 Order data prepared:', {
+      stripeSessionId: orderData.stripe_session_id,
+      customerEmail: orderData.customer_email,
+      totalAmountCents: orderData.total_amount_cents,
+      quantity: orderData.quantity,
+      hasShippingAddress: !!orderData.shipping_address
+    });
+
+    // Save to database
+    const { data, error } = await supabase
       .from('order_details')
+      .insert(orderData)
       .select('id')
-      .eq('stripe_session_id', session.id)
       .single();
 
-    if (fetchError || !orderDetails) {
-      logEvent({
-        level: LogLevel.WARN,
-        message: 'Order details not found for session',
-        sessionId: session.id,
-        data: { sessionId: session.id, error: fetchError?.message }
-      }, correlationId);
-      return;
-    }
-
-    // Update order status
-    const { error: updateError } = await supabase
-      .from('order_details')
-      .update({
-        status: 'paid',
-        payment_status: 'succeeded',
-        payment_intent_id: session.payment_intent,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', orderDetails.id);
-
-    if (updateError) {
+    if (error) {
       logError(
         ErrorCategory.DATABASE,
-        'Failed to update order details',
-        updateError,
+        'Failed to save order details',
+        error,
         correlationId,
-        { sessionId: session.id, orderId: orderDetails.id }
+        { sessionId: session.id }
       );
     } else {
       logEvent({
         level: LogLevel.INFO,
-        message: 'Order details updated successfully',
+        message: 'Order details saved successfully',
         sessionId: session.id,
-        data: { orderId: orderDetails.id, status: 'paid' }
+        data: { orderId: data.id, status: 'paid' }
       }, correlationId);
+      
+      console.log('✅ Order details saved successfully:', {
+        id: data.id,
+        sessionId: session.id,
+        customerEmail: orderData.customer_email,
+        totalAmountCents: orderData.total_amount_cents
+      });
     }
   } catch (error) {
     logError(
       ErrorCategory.WEBHOOK_PROCESSING,
-      'Error updating order details',
+      'Error saving order details',
       error,
       correlationId,
       { sessionId: session.id }
@@ -1282,8 +1310,8 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
     // Store customer data and marketing consent
     await storeCustomerData(session, correlationId);
     
-    // Update order details with payment completion
-    await updateOrderDetailsOnPayment(session, correlationId);
+    // Save complete order details with payment completion
+    await saveCompleteOrderDetails(session, correlationId);
     
     completePerformanceMonitoring(sessionMetrics, 'checkout_session_completed', correlationId, true);
     
