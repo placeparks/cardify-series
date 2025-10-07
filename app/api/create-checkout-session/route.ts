@@ -10,13 +10,28 @@ import { supabase } from '@/lib/supabase';
  */
 async function saveOrderDetails(session: Stripe.Checkout.Session, body: any, lineItems: any[]) {
   try {
+    console.log('🔍 Debug - Session data:', {
+      id: session.id,
+      amount_total: session.amount_total,
+      currency: session.currency,
+      customer_email: session.customer_details?.email,
+      shipping: session.shipping_details
+    });
+    
+    console.log('🔍 Debug - Body data:', {
+      customerEmail: body.customerEmail,
+      email: body.email,
+      shippingAddress: body.shippingAddress,
+      quantity: body.quantity
+    });
+
     const orderData = {
       stripeSessionId: session.id,
-      customerEmail: body.customerEmail || body.email,
-      customerName: body.customerName || body.name,
-      customerPhone: body.customerPhone || body.phone,
-      shippingAddress: body.shippingAddress,
-      billingAddress: body.billingAddress,
+      customerEmail: body.customerEmail || body.email || session.customer_details?.email,
+      customerName: body.customerName || body.name || session.customer_details?.name,
+      customerPhone: body.customerPhone || body.phone || session.customer_details?.phone,
+      shippingAddress: body.shippingAddress || session.shipping_details?.address,
+      billingAddress: body.billingAddress || session.customer_details?.address,
       totalAmountCents: session.amount_total,
       currency: session.currency,
       quantity: body.quantity || 1,
@@ -31,7 +46,7 @@ async function saveOrderDetails(session: Stripe.Checkout.Session, body: any, lin
       displayCaseQuantity: body.displayCaseQuantity || 0,
       imageUrl: body.imageUrl || body.customImageUrl,
       originalFilename: body.originalFilename,
-      shippingCountry: body.shippingCountry || body.shippingAddress?.country,
+      shippingCountry: body.shippingCountry || body.shippingAddress?.country || session.shipping_details?.address?.country,
       shippingCostCents: session.shipping_cost?.amount_total,
       shippingRateId: session.shipping_cost?.shipping_rate,
       status: 'pending',
@@ -39,6 +54,13 @@ async function saveOrderDetails(session: Stripe.Checkout.Session, body: any, lin
       metadata: body.metadata || {},
       stripeMetadata: session.metadata || {}
     };
+
+    console.log('📤 Sending order data to API:', {
+      stripeSessionId: orderData.stripeSessionId,
+      customerEmail: orderData.customerEmail,
+      totalAmountCents: orderData.totalAmountCents,
+      quantity: orderData.quantity
+    });
 
     const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/orders/save-details`, {
       method: 'POST',
@@ -49,10 +71,17 @@ async function saveOrderDetails(session: Stripe.Checkout.Session, body: any, lin
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to save order details: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('❌ Order details API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText
+      });
+      throw new Error(`Failed to save order details: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
-    console.log('✅ Order details saved successfully');
+    const result = await response.json();
+    console.log('✅ Order details saved successfully:', result);
   } catch (error) {
     console.error('❌ Error saving order details:', error);
     throw error;
@@ -451,13 +480,8 @@ async function handleCartCheckout(
       metadata,
     });
     
-    // Save order details to our database
-    try {
-      await saveOrderDetails(session, body, lineItems);
-    } catch (orderError) {
-      console.warn('Failed to save order details (continuing):', orderError);
-      // Don't fail the checkout if order details saving fails
-    }
+    // Note: Order details will be saved in webhook after payment completion
+    // when we have complete customer and shipping information
 
     return NextResponse.json(
       { 
@@ -970,13 +994,8 @@ async function handleCheckoutSession(request: NextRequest) {
     // This prevents inventory reduction for abandoned checkouts
 
     // Return session information
-    // Save order details to our database
-    try {
-      await saveOrderDetails(session, body, lineItems);
-    } catch (orderError) {
-      console.warn('Failed to save order details (continuing):', orderError);
-      // Don't fail the checkout if order details saving fails
-    }
+    // Note: Order details will be saved in webhook after payment completion
+    // when we have complete customer and shipping information
 
     return NextResponse.json(
       { 
@@ -1262,13 +1281,8 @@ async function handleMarketplaceCheckout(
       listingId: listing.id
     });
 
-    // Save order details to our database
-    try {
-      await saveOrderDetails(session, body, lineItems);
-    } catch (orderError) {
-      console.warn('Failed to save order details (continuing):', orderError);
-      // Don't fail the checkout if order details saving fails
-    }
+    // Note: Order details will be saved in webhook after payment completion
+    // when we have complete customer and shipping information
 
     return NextResponse.json({ url: session.url });
 
