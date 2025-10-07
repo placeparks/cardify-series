@@ -5,6 +5,60 @@ import Stripe from 'stripe';
 import { withRateLimit, RateLimitConfigs } from '@/lib/rate-limiter';
 import { supabase } from '@/lib/supabase';
 
+/**
+ * Save order details to our database
+ */
+async function saveOrderDetails(session: Stripe.Checkout.Session, body: any, lineItems: any[]) {
+  try {
+    const orderData = {
+      stripeSessionId: session.id,
+      customerEmail: body.customerEmail || body.email,
+      customerName: body.customerName || body.name,
+      customerPhone: body.customerPhone || body.phone,
+      shippingAddress: body.shippingAddress,
+      billingAddress: body.billingAddress,
+      totalAmountCents: session.amount_total,
+      currency: session.currency,
+      quantity: body.quantity || 1,
+      productType: body.productType || 'mixed',
+      productDetails: {
+        lineItems: lineItems,
+        cartItems: body.cartItems || [],
+        metadata: session.metadata
+      },
+      cardFinish: body.cardFinish,
+      includeDisplayCase: body.includeDisplayCase || false,
+      displayCaseQuantity: body.displayCaseQuantity || 0,
+      imageUrl: body.imageUrl || body.customImageUrl,
+      originalFilename: body.originalFilename,
+      shippingCountry: body.shippingCountry || body.shippingAddress?.country,
+      shippingCostCents: session.shipping_cost?.amount_total,
+      shippingRateId: session.shipping_cost?.shipping_rate,
+      status: 'pending',
+      paymentStatus: 'pending',
+      metadata: body.metadata || {},
+      stripeMetadata: session.metadata || {}
+    };
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/orders/save-details`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(orderData)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to save order details: ${response.statusText}`);
+    }
+
+    console.log('✅ Order details saved successfully');
+  } catch (error) {
+    console.error('❌ Error saving order details:', error);
+    throw error;
+  }
+}
+
 
 /**
  * Get shipping option based on customer's country
@@ -397,6 +451,14 @@ async function handleCartCheckout(
       metadata,
     });
     
+    // Save order details to our database
+    try {
+      await saveOrderDetails(session, body, lineItems);
+    } catch (orderError) {
+      console.warn('Failed to save order details (continuing):', orderError);
+      // Don't fail the checkout if order details saving fails
+    }
+
     return NextResponse.json(
       { 
         success: true,
@@ -908,6 +970,14 @@ async function handleCheckoutSession(request: NextRequest) {
     // This prevents inventory reduction for abandoned checkouts
 
     // Return session information
+    // Save order details to our database
+    try {
+      await saveOrderDetails(session, body, lineItems);
+    } catch (orderError) {
+      console.warn('Failed to save order details (continuing):', orderError);
+      // Don't fail the checkout if order details saving fails
+    }
+
     return NextResponse.json(
       { 
         success: true,
@@ -1191,6 +1261,14 @@ async function handleMarketplaceCheckout(
       amount: totalAmountCents,
       listingId: listing.id
     });
+
+    // Save order details to our database
+    try {
+      await saveOrderDetails(session, body, lineItems);
+    } catch (orderError) {
+      console.warn('Failed to save order details (continuing):', orderError);
+      // Don't fail the checkout if order details saving fails
+    }
 
     return NextResponse.json({ url: session.url });
 
