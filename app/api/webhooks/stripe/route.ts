@@ -1027,6 +1027,65 @@ export async function POST(request: NextRequest) {
 }
 
 /**
+ * Update order details when payment is completed
+ */
+async function updateOrderDetailsOnPayment(session: Stripe.Checkout.Session, correlationId: string) {
+  try {
+    const { data: orderDetails, error: fetchError } = await supabase
+      .from('order_details')
+      .select('id')
+      .eq('stripe_session_id', session.id)
+      .single();
+
+    if (fetchError || !orderDetails) {
+      logEvent({
+        level: LogLevel.WARN,
+        message: 'Order details not found for session',
+        sessionId: session.id,
+        data: { sessionId: session.id, error: fetchError?.message }
+      }, correlationId);
+      return;
+    }
+
+    // Update order status
+    const { error: updateError } = await supabase
+      .from('order_details')
+      .update({
+        status: 'paid',
+        payment_status: 'succeeded',
+        payment_intent_id: session.payment_intent,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderDetails.id);
+
+    if (updateError) {
+      logError(
+        ErrorCategory.DATABASE,
+        'Failed to update order details',
+        updateError,
+        correlationId,
+        { sessionId: session.id, orderId: orderDetails.id }
+      );
+    } else {
+      logEvent({
+        level: LogLevel.INFO,
+        message: 'Order details updated successfully',
+        sessionId: session.id,
+        data: { orderId: orderDetails.id, status: 'paid' }
+      }, correlationId);
+    }
+  } catch (error) {
+    logError(
+      ErrorCategory.WEBHOOK_PROCESSING,
+      'Error updating order details',
+      error,
+      correlationId,
+      { sessionId: session.id }
+    );
+  }
+}
+
+/**
  * Handle completed checkout sessions
  * This is where we'll process successful purchases
  */
@@ -1222,6 +1281,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
     
     // Store customer data and marketing consent
     await storeCustomerData(session, correlationId);
+    
+    // Update order details with payment completion
+    await updateOrderDetailsOnPayment(session, correlationId);
     
     completePerformanceMonitoring(sessionMetrics, 'checkout_session_completed', correlationId, true);
     
