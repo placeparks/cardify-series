@@ -163,7 +163,7 @@ export function UploadArea({
                 const mockFile = new File(
                   [JSON.stringify({ url: result.pinataUrl })],
                   file.name,
-                  { type: 'application/json' }
+                  { type: 'image/jpeg' } // Use image MIME type for storage compatibility
                 );
                 onFileUpload(mockFile);
                 return;
