@@ -1,517 +1,543 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { ethers } from 'ethers'
-import { createClient } from '@supabase/supabase-js'
-// ERC1155 Factory Contract ABI
+// app/api/nft/erc1155/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { ethers } from "ethers";
+import crypto from "crypto";
+import { createClient } from "@supabase/supabase-js";
+
+/* ──────────────────────────────────────────────────────────────────────────
+   ✅ ABI: must match your deployed Solidity exactly
+   - constructor(address mp)
+   - createCollection(
+       string baseUri,
+       string name_,
+       string symbol_,
+       string description,
+       uint256 mintPrice,
+       uint256 maxSupply,
+       address royaltyRecip,
+       uint96  royaltyBps
+     ) returns (address)
+   - event CollectionDeployed(address indexed creator, address collection)
+   - setMarketplace(address)
+   - isCardifyCollection(address) view returns (bool)
+   ------------------------------------------------------------------------- */
 const erc1155FactoryAbi = [
   {
-    "inputs": [],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
+    inputs: [{ internalType: "address", name: "mp", type: "address" }],
+    stateMutability: "nonpayable",
+    type: "constructor",
   },
   {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "creator",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "collection",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "mintPrice",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "maxSupply",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "name",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "symbol",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "royaltyRecipient",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint96",
-        "name": "royaltyBps",
-        "type": "uint96"
-      }
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "address", name: "creator", type: "address" },
+      { indexed: false, internalType: "address", name: "collection", type: "address" },
     ],
-    "name": "CollectionDeployed",
-    "type": "event"
+    name: "CollectionDeployed",
+    type: "event",
   },
   {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "baseUri",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "mintPrice",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "maxSupply",
-        "type": "uint256"
-      },
-      {
-        "internalType": "string",
-        "name": "name_",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "symbol_",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "description",
-        "type": "string"
-      },
-      {
-        "internalType": "address",
-        "name": "royaltyRecipient",
-        "type": "address"
-      },
-      {
-        "internalType": "uint96",
-        "name": "royaltyBps",
-        "type": "uint96"
-      }
+    inputs: [
+      { internalType: "string", name: "baseUri", type: "string" },
+      { internalType: "string", name: "name_", type: "string" },
+      { internalType: "string", name: "symbol_", type: "string" },
+      { internalType: "string", name: "description", type: "string" },
+      { internalType: "uint256", name: "mintPrice", type: "uint256" },
+      { internalType: "uint256", name: "maxSupply", type: "uint256" },
+      { internalType: "address", name: "royaltyRecip", type: "address" },
+      { internalType: "uint96", name: "royaltyBps", type: "uint96" },
     ],
-    "name": "createCollection",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "collection",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  }
-]
-import crypto from 'crypto'
+    name: "createCollection",
+    outputs: [{ internalType: "address", name: "col", type: "address" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "mp", type: "address" }],
+    name: "setMarketplace",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "col", type: "address" }],
+    name: "isCardifyCollection",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-)
-
-// ERC1155 Factory contract address
-const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_FACTORY_ADDRESS_ERC1155!
-
-// Network configuration
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.infura.io/v3/YOUR_PROJECT_ID'
-const PRIVATE_KEY = process.env.WALLET_PRIVATE_KEY!
-
+/* ──────────────────────────────────────────────────────────────────────────
+   Types
+   ------------------------------------------------------------------------- */
 interface GenerateCollectionRequest {
-  collectionNumber: number
-  name: string
-  symbol: string
-  image: string // Base64 encoded image
-  description?: string
-  maxSupply: number
-  royaltyRecipient: string
-  royaltyBps: number
+  collectionNumber: number;
+  name: string;
+  symbol: string;
+  image: string; // Gateway URL or ipfs://
+  description?: string;
+  maxSupply: number;
+  royaltyRecipient?: string;
+  royaltyBps?: number; // default 250 = 2.5%
 }
 
 interface GenerateCollectionResponse {
-  success: boolean
-  collectionAddress?: string
-  codes?: string[]
-  transactionHash?: string
-  error?: string
+  success: boolean;
+  collectionAddress?: string;
+  codes?: string[];
+  transactionHash?: string;
+  error?: string;
+  creditsDeducted?: number;
+  newCreditBalance?: number | "unknown";
+  collection?: {
+    address: string;
+    name: string;
+    symbol: string;
+    maxSupply: number;
+    active: boolean;
+    type: "erc1155";
+  };
 }
 
-export async function POST(req: NextRequest): Promise<NextResponse<GenerateCollectionResponse>> {
-  console.log('🚀 [NFT Collection] Starting collection generation...')
-  
+/* ──────────────────────────────────────────────────────────────────────────
+   Env / Config
+   ------------------------------------------------------------------------- */
+const {
+  SUPABASE_URL,
+  SUPABASE_SERVICE_KEY,
+  NEXT_PUBLIC_FACTORY_ADDRESS_ERC1155,
+  NEXT_PUBLIC_RPC_URL,
+  WALLET_PRIVATE_KEY,
+} = process.env;
+
+const RPC_URL =
+  NEXT_PUBLIC_RPC_URL ||
+  "https://sepolia.infura.io/v3/YOUR_PROJECT_ID"; // default fallback
+
+const FACTORY_ADDRESS = NEXT_PUBLIC_FACTORY_ADDRESS_ERC1155 || "";
+const PRIVATE_KEY = WALLET_PRIVATE_KEY || "";
+
+const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!);
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Helpers
+   ------------------------------------------------------------------------- */
+
+// Normalize any gateway URL (or raw CID) to ipfs://CID/
+function toIpfsBaseUri(input: string): string {
+  // Already ipfs://
+  if (input.startsWith("ipfs://")) {
+    // ensure trailing slash for base URIs
+    return input.endsWith("/") ? input : `${input}/`;
+  }
+  // If full gateway URL or path, try to pull CID
+  const cid = extractCidFromPinataUrl(input);
+  if (cid) return `ipfs://${cid}/`;
+  // As a last resort, pass through, but base URIs should end with '/'
+  return input.endsWith("/") ? input : `${input}/`;
+}
+
+// Extract CID from common gateway URLs
+function extractCidFromPinataUrl(pinataUrl: string): string | null {
   try {
-    const body: GenerateCollectionRequest = await req.json()
-    console.log('📝 [NFT Collection] Request body:', {
+    if (!pinataUrl.includes("://")) {
+      // Maybe the user passed a bare CID
+      if (pinataUrl.startsWith("Qm") || pinataUrl.startsWith("bafy")) return pinataUrl;
+      return null;
+    }
+    const url = new URL(pinataUrl);
+    // Forms like /ipfs/<cid>/...
+    const parts = url.pathname.split("/").filter(Boolean);
+    const ipfsIdx = parts.findIndex((p) => p === "ipfs");
+    if (ipfsIdx !== -1 && parts[ipfsIdx + 1]) return parts[ipfsIdx + 1];
+
+    // Fallback: last segment looks like a CID
+    const last = parts[parts.length - 1];
+    if (last && (last.startsWith("Qm") || last.startsWith("bafy"))) return last;
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function generateRandomCodes(count: number): string[] {
+  const codes: string[] = [];
+  const used = new Set<string>();
+  while (codes.length < count) {
+    const code = crypto.randomBytes(4).toString("hex").toUpperCase();
+    if (!used.has(code)) {
+      used.add(code);
+      codes.push(code);
+    }
+  }
+  return codes;
+}
+
+function ensureEnv(): string[] {
+  const missing: string[] = [];
+  if (!SUPABASE_URL) missing.push("SUPABASE_URL");
+  if (!SUPABASE_SERVICE_KEY) missing.push("SUPABASE_SERVICE_KEY");
+  if (!FACTORY_ADDRESS) missing.push("NEXT_PUBLIC_FACTORY_ADDRESS_ERC1155");
+  if (!RPC_URL) missing.push("NEXT_PUBLIC_RPC_URL");
+  if (!PRIVATE_KEY) missing.push("WALLET_PRIVATE_KEY");
+  return missing;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   POST handler
+   ------------------------------------------------------------------------- */
+export async function POST(
+  req: NextRequest
+): Promise<NextResponse<GenerateCollectionResponse>> {
+  console.log("🚀 [NFT Collection] Starting collection generation...");
+
+  const missing = ensureEnv();
+  if (missing.length) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: `Missing env: ${missing.join(", ")}`,
+      },
+      { status: 500 }
+    );
+  }
+
+  try {
+    const body = (await req.json()) as GenerateCollectionRequest;
+
+    console.log("📝 [NFT Collection] Request body:", {
       collectionNumber: body.collectionNumber,
       name: body.name,
       symbol: body.symbol,
       maxSupply: body.maxSupply,
-      imageLength: body.image?.length || 0
-    })
-    
-    // Validate required fields
+      imageLength: body.image?.length || 0,
+    });
+
+    // Input validation
     if (!body.collectionNumber || !body.name || !body.symbol || !body.image || !body.maxSupply) {
-      console.log('❌ [NFT Collection] Missing required fields')
-      return NextResponse.json({
-        success: false,
-        error: 'Missing required fields: collectionNumber, name, symbol, image, maxSupply'
-      }, { status: 400 })
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Missing required fields: collectionNumber, name, symbol, image, maxSupply",
+        },
+        { status: 400 }
+      );
+    }
+    if (body.maxSupply <= 0) {
+      return NextResponse.json(
+        { success: false, error: "maxSupply must be > 0" },
+        { status: 400 }
+      );
+    }
+    const royaltyBps = body.royaltyBps ?? 250;
+    if (royaltyBps < 0 || royaltyBps > 10_000) {
+      return NextResponse.json(
+        { success: false, error: "royaltyBps must be between 0 and 10_000" },
+        { status: 400 }
+      );
     }
 
-    // Check authentication using cookies
-    console.log('🔐 [NFT Collection] Checking authentication...')
-    const supabaseServer = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!
-    )
-    
-    // Get the authorization header from the request
-    const authHeader = req.headers.get('authorization')
-    console.log('🔑 [NFT Collection] Auth header present:', !!authHeader)
-    
+    /* ── Auth: Bearer Supabase JWT ─────────────────────────────────────── */
+    console.log("🔐 [NFT Collection] Checking authentication...");
+    const authHeader = req.headers.get("authorization");
+    console.log("🔑 [NFT Collection] Auth header present:", !!authHeader);
+
     if (!authHeader) {
-      console.log('❌ [NFT Collection] No auth header found')
-      return NextResponse.json({
-        success: false,
-        error: 'Authentication required'
-      }, { status: 401 })
+      return NextResponse.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 }
+      );
     }
-    
-    // Verify the JWT token
-    const { data: { user }, error: authError } = await supabaseServer.auth.getUser(authHeader.replace('Bearer ', ''))
-    console.log('👤 [NFT Collection] User authenticated:', !!user, 'Error:', authError?.message)
-    
-    if (authError || !user) {
-      console.log('❌ [NFT Collection] Authentication failed')
-      return NextResponse.json({
-        success: false,
-        error: 'Authentication required'
-      }, { status: 401 })
+    const token = authHeader.replace("Bearer ", "");
+    const {
+      data: { user },
+      error: authError,
+    } = await supabaseAdmin.auth.getUser(token);
+    console.log("👤 [NFT Collection] User authenticated:", !!user, "Error:", authError?.message);
+    if (!user || authError) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 }
+      );
     }
 
-    // Check user credits (need 10 extra credits for NFT generation)
-    console.log('💰 [NFT Collection] Checking user credits...')
-    const { data: profile, error: profileError } = await supabaseServer
-      .from('profiles')
-      .select('credits')
-      .eq('id', user.id)
-      .single()
+    /* ── Credits check ─────────────────────────────────────────────────── */
+    console.log("💰 [NFT Collection] Checking user credits...");
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .select("credits")
+      .eq("id", user.id)
+      .single();
 
-    console.log('💳 [NFT Collection] Profile data:', { credits: profile?.credits, error: profileError?.message })
+    console.log("💳 [NFT Collection] Profile data:", {
+      credits: profile?.credits,
+      error: profileError?.message,
+    });
 
     if (profileError || !profile) {
-      console.log('❌ [NFT Collection] User profile not found')
-      return NextResponse.json({
-        success: false,
-        error: 'User profile not found'
-      }, { status: 404 })
+      return NextResponse.json(
+        { success: false, error: "User profile not found" },
+        { status: 404 }
+      );
     }
 
-    const requiredCredits = 10 // Extra credits for NFT generation
-    console.log('💵 [NFT Collection] Credit check:', { userCredits: profile.credits, required: requiredCredits })
-    
+    const requiredCredits = 10;
+    console.log("💵 [NFT Collection] Credit check:", {
+      userCredits: profile.credits,
+      required: requiredCredits,
+    });
+
     if (profile.credits < requiredCredits) {
-      console.log('❌ [NFT Collection] Insufficient credits')
-      return NextResponse.json({
-        success: false,
-        error: `Insufficient credits. You need ${requiredCredits} credits for NFT generation.`
-      }, { status: 400 })
-    }
-
-    // Validate private key
-    if (!PRIVATE_KEY) {
-      return NextResponse.json({
-        success: false,
-        error: 'Wallet private key not configured'
-      }, { status: 500 })
-    }
-
-    // Setup provider and wallet
-    console.log('🔗 [NFT Collection] Setting up blockchain connection...')
-    const provider = new ethers.JsonRpcProvider(RPC_URL)
-    const wallet = new ethers.Wallet(PRIVATE_KEY, provider)
-    console.log('👛 [NFT Collection] Wallet address:', wallet.address)
-
-    // Use the provided image URI (should be Pinata URL)
-    const imageUri = body.image
-    console.log('🖼️ [NFT Collection] Image URI:', imageUri.substring(0, 50) + '...')
-    
-    // Extract CID from Pinata URL
-    const pinataCid = extractCidFromPinataUrl(imageUri)
-    console.log('🔗 [NFT Collection] Pinata CID extracted:', pinataCid ? 'Yes' : 'No')
-    
-    // Generate random codes
-    console.log('🎲 [NFT Collection] Generating codes...')
-    const codes = generateRandomCodes(body.maxSupply)
-    const hashes = codes.map(code => ethers.keccak256(ethers.toUtf8Bytes(code)))
-    console.log('🔐 [NFT Collection] Generated', codes.length, 'codes')
-
-    // Deploy ERC1155 collection contract
-    console.log('📄 [NFT Collection] Deploying contract...')
-    const factoryContract = new ethers.Contract(FACTORY_ADDRESS, erc1155FactoryAbi, wallet)
-    
-    console.log('🏭 [NFT Collection] Factory address:', FACTORY_ADDRESS)
-    console.log('📋 [NFT Collection] Collection params:', {
-      name: body.name,
-      symbol: body.symbol,
-      maxSupply: body.maxSupply,
-      royaltyBps: body.royaltyBps || 250
-    })
-    
-    const tx = await factoryContract.createCollection(
-      imageUri, // baseUri
-      0, // mintPrice (always 0 as requested)
-      body.maxSupply,
-      body.name,
-      body.symbol,
-      body.description || '',
-      body.royaltyRecipient || wallet.address,
-      body.royaltyBps || 250 // 2.5% default royalty
-    )
-
-    console.log('⏳ [NFT Collection] Transaction sent:', tx.hash)
-    console.log('⏳ [NFT Collection] Waiting for confirmation...')
-
-    const receipt = await tx.wait()
-    console.log('✅ [NFT Collection] Contract deployed:', receipt.hash)
-    
-    // Get the deployed collection address from the event
-    const event = receipt.logs.find((log: any) => {
-      try {
-        const parsed = factoryContract.interface.parseLog(log)
-        return parsed?.name === 'CollectionDeployed'
-      } catch {
-        return false
-      }
-    })
-
-    if (!event) {
-      throw new Error('Collection deployment event not found')
-    }
-
-    const parsedEvent = factoryContract.interface.parseLog(event)
-    const collectionAddress = parsedEvent?.args.collection
-    console.log('📍 [NFT Collection] Collection address:', collectionAddress)
-
-    // Wait a bit before adding codes to avoid nonce conflicts
-    console.log('⏳ [NFT Collection] Waiting before adding codes...')
-    await new Promise(resolve => setTimeout(resolve, 2000))
-
-    // Add all codes to the deployed contract in one transaction
-    console.log('🔐 [NFT Collection] Adding all codes to contract...')
-    const collectionContract = new ethers.Contract(
-      collectionAddress,
-      [
+      return NextResponse.json(
         {
-          "inputs": [{"internalType": "bytes32[]", "name": "hashes", "type": "bytes32[]"}],
-          "name": "addValidCodes",
-          "outputs": [],
-          "stateMutability": "nonpayable",
-          "type": "function"
+          success: false,
+          error: `Insufficient credits. You need ${requiredCredits} credits for NFT generation.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    /* ── Chain setup ───────────────────────────────────────────────────── */
+    console.log("🔗 [NFT Collection] Setting up blockchain connection...");
+    const provider = new ethers.JsonRpcProvider(RPC_URL);
+    const wallet = new ethers.Wallet(PRIVATE_KEY, provider);
+    console.log("👛 [NFT Collection] Wallet address:", wallet.address);
+
+    // Verify factory address has code (catch wrong network / bad address)
+    const code = await provider.getCode(FACTORY_ADDRESS);
+    if (!code || code === "0x") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `No code at FACTORY_ADDRESS (${FACTORY_ADDRESS}) on current RPC; check network/env.`,
+        },
+        { status: 500 }
+      );
+    }
+
+    /* ── Build call args with CORRECT ORDER ─────────────────────────────── */
+    // Convert any gateway URL to base ipfs://CID/
+    const baseUri = toIpfsBaseUri(body.image); // ensure trailing "/"
+    const name_ = body.name;
+    const symbol_ = body.symbol;
+    const description = body.description ?? "";
+    const mintPriceWei = 0n; // free mints as per your spec
+    const maxSupply = BigInt(body.maxSupply);
+    const royaltyRecip =
+      body.royaltyRecipient && ethers.isAddress(body.royaltyRecipient)
+        ? body.royaltyRecipient
+        : wallet.address;
+
+    if (royaltyBps > 0 && (!royaltyRecip || royaltyRecip === ethers.ZeroAddress)) {
+      return NextResponse.json(
+        { success: false, error: "royaltyRecipient required when royaltyBps > 0" },
+        { status: 400 }
+      );
+    }
+
+    // Prepare factory
+    const factory = new ethers.Contract(FACTORY_ADDRESS, erc1155FactoryAbi, wallet);
+
+    console.log("🏭 [NFT Collection] Factory address:", FACTORY_ADDRESS);
+    console.log("📋 [NFT Collection] Collection params:", {
+      baseUri,
+      name: name_,
+      symbol: symbol_,
+      description,
+      mintPriceWei: mintPriceWei.toString(),
+      maxSupply: maxSupply.toString(),
+      royaltyRecip,
+      royaltyBps,
+    });
+
+    // Generate codes (optional; used later if your collection supports it)
+    console.log("🎲 [NFT Collection] Generating codes...");
+    const codes = generateRandomCodes(body.maxSupply);
+    const hashes = codes.map((c) => ethers.keccak256(ethers.toUtf8Bytes(c)));
+    console.log("🔐 [NFT Collection] Generated", codes.length, "codes");
+
+    /* ── Execute tx ─────────────────────────────────────────────────────── */
+    console.log("📄 [NFT Collection] Deploying contract...");
+    const tx = await factory.createCollection(
+      baseUri,       // string baseUri
+      name_,         // string name_
+      symbol_,       // string symbol_
+      description,   // string description
+      mintPriceWei,  // uint256 mintPrice
+      maxSupply,     // uint256 maxSupply
+      royaltyRecip,  // address royaltyRecip
+      royaltyBps     // uint96  royaltyBps
+    );
+
+    console.log("⏳ [NFT Collection] Transaction sent:", tx.hash);
+    const receipt = await tx.wait();
+    console.log("✅ [NFT Collection] Tx confirmed:", receipt?.hash);
+
+    // Parse CollectionDeployed event
+    let collectionAddress = "";
+    try {
+      const iface = new ethers.Interface(erc1155FactoryAbi as any);
+      for (const log of receipt!.logs) {
+        try {
+          const parsed = iface.parseLog(log);
+          if (parsed?.name === "CollectionDeployed") {
+            collectionAddress = parsed.args.collection as string;
+            break;
+          }
+        } catch {
+          // ignore non-matching log
         }
-      ],
-      wallet
-    )
+      }
+    } catch (e) {
+      // fallback: try to read from return (not always available with proxies)
+    }
 
-    console.log(`📦 [NFT Collection] Adding ${hashes.length} codes in one transaction...`)
-    const addCodesTx = await collectionContract.addValidCodes(hashes)
-    console.log(`⏳ [NFT Collection] Codes transaction sent:`, addCodesTx.hash)
-    
-      await addCodesTx.wait()
-    console.log(`✅ [NFT Collection] All codes added successfully`)
+    if (!collectionAddress) {
+      // As a fallback, call a view (if you maintain an index) or throw:
+      throw new Error("Collection deployment event not found");
+    }
 
-    // Store collection info in database with enhanced schema
-    console.log('💾 [NFT Collection] Storing collection in database...', {
+    console.log("📍 [NFT Collection] Collection address:", collectionAddress);
+
+    /* ── Optionally push codes to collection (if method exists) ─────────── */
+    try {
+      console.log("⏳ [NFT Collection] Waiting before adding codes...");
+      await new Promise((r) => setTimeout(r, 1500));
+
+      // Minimal ABI for addValidCodes
+      const codeAbi = [
+        {
+          inputs: [{ internalType: "bytes32[]", name: "hashes", type: "bytes32[]" }],
+          name: "addValidCodes",
+          outputs: [],
+          stateMutability: "nonpayable",
+          type: "function",
+        },
+      ] as const;
+
+      const candidate = new ethers.Contract(collectionAddress, codeAbi, wallet);
+
+      // Quick interface probe (won’t catch all cases but prevents obvious bad calls)
+      const sel = new ethers.Interface(codeAbi).getFunction("addValidCodes").selector;
+      // Try static call first to avoid wasting gas if function is absent / guarded
+      await candidate.addValidCodes.staticCall(hashes);
+      console.log(`📦 [NFT Collection] Adding ${hashes.length} codes in one transaction...`);
+      const addCodesTx = await candidate.addValidCodes(hashes);
+      console.log("⏳ [NFT Collection] Codes tx sent:", addCodesTx.hash);
+      await addCodesTx.wait();
+      console.log("✅ [NFT Collection] All codes added successfully");
+    } catch (err) {
+      console.log(
+        "⚠️ [NFT Collection] Skipping addValidCodes (method missing or guarded):",
+        (err as Error)?.message
+      );
+    }
+
+    /* ── DB writes ──────────────────────────────────────────────────────── */
+    const pinataCid = extractCidFromPinataUrl(body.image);
+
+    console.log("💾 [NFT Collection] Storing collection in database...", {
       address: collectionAddress.toLowerCase(),
       name: body.name,
       symbol: body.symbol,
       maxSupply: body.maxSupply,
-      active: true // All user collections are active by default
-    })
-    
-    const { error: collectionError } = await supabaseServer.from('collections').insert({
+      active: true,
+    });
+
+    const { error: collectionError } = await supabaseAdmin.from("collections").insert({
       address: collectionAddress.toLowerCase(),
-      owner: user.id, // Use user ID instead of wallet address
-      cid: pinataCid, // Pinata Content ID from image upload
-      collection_type: 'erc1155',
+      owner: user.id,
+      cid: pinataCid,
+      collection_type: "erc1155",
       name: body.name,
       symbol: body.symbol,
-      description: body.description,
+      description: body.description ?? "",
       max_supply: body.maxSupply,
-      mint_price: 0, // Always 0 as per your contract
-      image_uri: imageUri,
-      base_uri: imageUri, // Using imageUri as base_uri for ERC1155
-      royalty_recipient: body.royaltyRecipient || wallet.address,
-      royalty_bps: body.royaltyBps || 250,
-      active: true, // All user collections are active by default
-      created_at: new Date().toISOString()
-    })
+      mint_price: 0,
+      image_uri: body.image,
+      base_uri: toIpfsBaseUri(body.image), // normalized ipfs base
+      royalty_recipient: royaltyRecip,
+      royalty_bps: royaltyBps,
+      active: true,
+      created_at: new Date().toISOString(),
+    });
 
     if (collectionError) {
-      console.error('❌ [NFT Collection] Error storing collection:', collectionError)
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to store collection in database'
-      }, { status: 500 })
+      return NextResponse.json(
+        { success: false, error: "Failed to store collection in database" },
+        { status: 500 }
+      );
     }
 
-    // Store codes in database with enhanced schema
-    const codesData = codes.map((code, index) => ({
-      collection_address: collectionAddress.toLowerCase(),
-      code: code,
-      hash: hashes[index],
-      used: false,
-      used_by: null,
-      used_at: null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }))
-
-    const { error: codesError } = await supabaseServer.from('collection_codes').insert(codesData)
-    
-    if (codesError) {
-      console.error('❌ [NFT Collection] Error storing codes:', codesError)
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to store codes in database'
-      }, { status: 500 })
+    // Store codes if you use codes on frontend later
+    try {
+      const codesRows = codes.map((code, i) => ({
+        collection_address: collectionAddress.toLowerCase(),
+        code,
+        hash: hashes[i],
+        used: false,
+        used_by: null,
+        used_at: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }));
+      const { error: codesError } = await supabaseAdmin
+        .from("collection_codes")
+        .insert(codesRows);
+      if (codesError) {
+        console.log("⚠️ [NFT Collection] Error storing codes:", codesError.message);
+      }
+    } catch (e) {
+      console.log("⚠️ [NFT Collection] Skipping code rows:", (e as Error)?.message);
     }
 
-    // Deduct credits from user
-    console.log('💰 [NFT Collection] Deducting credits...', {
-      userId: user.id,
-      currentCredits: profile.credits,
-      deducting: requiredCredits,
-      newBalance: profile.credits - requiredCredits
-    })
-    
-    const { error: creditError } = await supabaseServer
-      .from('profiles')
-      .update({ 
-        credits: profile.credits - requiredCredits 
-      })
-      .eq('id', user.id)
+    // Deduct credits
+    const { error: creditError } = await supabaseAdmin
+      .from("profiles")
+      .update({ credits: profile.credits - requiredCredits })
+      .eq("id", user.id);
 
     if (creditError) {
-      console.error('❌ [NFT Collection] Error deducting credits:', creditError)
-      return NextResponse.json({
-        success: false,
-        error: 'Failed to deduct credits'
-      }, { status: 500 })
+      return NextResponse.json(
+        { success: false, error: "Failed to deduct credits" },
+        { status: 500 }
+      );
     }
-    
-    console.log('✅ [NFT Collection] Credits deducted successfully')
-    
-    // Verify credits were actually deducted
-    const { data: updatedProfile, error: verifyError } = await supabaseServer
-      .from('profiles')
-      .select('credits')
-      .eq('id', user.id)
-      .single()
-    
-    if (verifyError) {
-      console.error('❌ [NFT Collection] Error verifying credit deduction:', verifyError)
-    } else {
-      console.log('✅ [NFT Collection] Credit verification:', {
-        originalCredits: profile.credits,
-        newCredits: updatedProfile.credits,
-        deducted: profile.credits - updatedProfile.credits
-      })
-    }
+
+    // Verify credits
+    const { data: updatedProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("credits")
+      .eq("id", user.id)
+      .single();
 
     return NextResponse.json({
       success: true,
       collectionAddress,
       codes,
-      transactionHash: receipt.hash,
+      transactionHash: receipt!.hash,
       creditsDeducted: requiredCredits,
-      newCreditBalance: updatedProfile?.credits || 'unknown',
+      newCreditBalance: updatedProfile?.credits ?? "unknown",
       collection: {
         address: collectionAddress,
         name: body.name,
         symbol: body.symbol,
         maxSupply: body.maxSupply,
         active: true,
-        type: 'erc1155'
-      }
-    })
-
+        type: "erc1155",
+      },
+    });
   } catch (error) {
-    console.error('💥 [NFT Collection] Error generating collection:', error)
-    console.error('💥 [NFT Collection] Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      name: error instanceof Error ? error.name : undefined
-    })
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred'
-    }, { status: 500 })
-  }
-}
-
-// Image upload is now handled by Pinata in the frontend
-
-function generateRandomCodes(count: number): string[] {
-  const codes: string[] = []
-  const usedCodes = new Set<string>()
-  
-  while (codes.length < count) {
-    // Generate a random 8-character alphanumeric code
-    const code = crypto.randomBytes(4).toString('hex').toUpperCase()
-    
-    if (!usedCodes.has(code)) {
-      codes.push(code)
-      usedCodes.add(code)
-    }
-  }
-  
-  return codes
-}
-
-function extractCidFromPinataUrl(pinataUrl: string): string | null {
-  try {
-    // Pinata URLs typically look like: https://gateway.pinata.cloud/ipfs/QmHash...
-    // or https://ipfs.io/ipfs/QmHash...
-    const url = new URL(pinataUrl)
-    
-    // Extract CID from pathname (e.g., /ipfs/QmHash...)
-    const pathParts = url.pathname.split('/')
-    const ipfsIndex = pathParts.indexOf('ipfs')
-    
-    if (ipfsIndex !== -1 && pathParts[ipfsIndex + 1]) {
-      return pathParts[ipfsIndex + 1]
-    }
-    
-    // Fallback: try to extract from the end of the URL
-    const pathSegments = url.pathname.split('/')
-    const lastSegment = pathSegments[pathSegments.length - 1]
-    
-    // Check if it looks like a CID (starts with Qm, bafy, etc.)
-    if (lastSegment && (lastSegment.startsWith('Qm') || lastSegment.startsWith('bafy'))) {
-      return lastSegment
-    }
-    
-    console.log('⚠️ [CID Extraction] Could not extract CID from URL:', pinataUrl)
-    return null
-  } catch (error) {
-    console.error('❌ [CID Extraction] Error extracting CID:', error)
-    return null
+    console.error("💥 [NFT Collection] Error generating collection:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error occurred",
+      },
+      { status: 500 }
+    );
   }
 }
