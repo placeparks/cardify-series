@@ -5,14 +5,15 @@ import { ethers } from 'ethers'
 // ERC1155 Factory ABI
 const ERC1155_FACTORY_ABI = [
   {
-    "inputs": [
-      { "internalType": "string", "name": "name_", "type": "string" },
-      { "internalType": "string", "name": "symbol_", "type": "string" },
-      { "internalType": "string", "name": "baseURI_", "type": "string" },
-      { "internalType": "uint256", "name": "maxSupply_", "type": "uint256" },
-      { "internalType": "uint256", "name": "mintPrice_", "type": "uint256" },
-      { "internalType": "uint96", "name": "royaltyBps_", "type": "uint96" },
-      { "internalType": "address", "name": "royaltyReceiver_", "type": "address" }
+   "inputs": [
+      { internalType: "string",  name: "name_",             type: "string"  },
+      { internalType: "string",  name: "symbol_",           type: "string"  },
+      { internalType: "string",  name: "baseURI_",          type: "string"  },
+      { internalType: "uint256", name: "maxSupply_",        type: "uint256" },
+      { internalType: "uint256", name: "mintPrice_",        type: "uint256" },
+      { internalType: "uint96",  name: "royaltyBps_",       type: "uint96"  },
+      { internalType: "address", name: "royaltyReceiver_",  type: "address" },
+      { internalType: "address", name: "marketplace_",      type: "address" } 
     ],
     "name": "createCollection",
     "outputs": [{ "internalType": "address", "name": "clone", "type": "address" }],
