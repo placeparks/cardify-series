@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { ethers } from 'ethers'
-const MARKETPLACE       = process.env.NEXT_PUBLIC_MARKETPLACE! 
+const MARKETPLACE       = "0x7147D585a07Bc5E0FB5f740cf508D53b57091bab"
 // ERC1155 Factory ABI
 const ERC1155_FACTORY_ABI = [
   {
