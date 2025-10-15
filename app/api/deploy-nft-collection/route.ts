@@ -1,172 +1,143 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { ethers } from 'ethers'
-const MARKETPLACE       = "0x7147D585a07Bc5E0FB5f740cf508D53b57091bab"
-// ERC1155 Factory ABI
+
+/* ────────────────────────────────────────────────────────── */
+/* Constants & config                                         */
+/* ────────────────────────────────────────────────────────── */
+
+const MARKETPLACE = "0x7147D585a07Bc5E0FB5f740cf508D53b57091bab";   // kept for UI / logs
+const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_FACTORY_ADDRESS_NFT_ONLY!;
+
+/* ────────────────────────────────────────────────────────── */
+/* ABI – 7 parameters, no marketplace arg                     */
+/* ────────────────────────────────────────────────────────── */
 const ERC1155_FACTORY_ABI = [
   {
-   "inputs": [
-      { internalType: "string",  name: "name_",             type: "string"  },
-      { internalType: "string",  name: "symbol_",           type: "string"  },
-      { internalType: "string",  name: "baseURI_",          type: "string"  },
-      { internalType: "uint256", name: "maxSupply_",        type: "uint256" },
-      { internalType: "uint256", name: "mintPrice_",        type: "uint256" },
-      { internalType: "uint96",  name: "royaltyBps_",       type: "uint96"  },
-      { internalType: "address", name: "royaltyReceiver_",  type: "address" },
-      { internalType: "address", name: "marketplace_",      type: "address" } 
+    name: "createCollection",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "name_",             type: "string"  },
+      { name: "symbol_",           type: "string"  },
+      { name: "baseURI_",          type: "string"  },
+      { name: "maxSupply_",        type: "uint256" },
+      { name: "mintPrice_",        type: "uint256" },
+      { name: "royaltyBps_",       type: "uint96"  },
+      { name: "royaltyReceiver_",  type: "address" }
+      // ――― NO marketplace parameter here ―――
     ],
-    "name": "createCollection",
-    "outputs": [{ "internalType": "address", "name": "clone", "type": "address" }],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    outputs: [
+      { name: "clone", type: "address" }
+    ]
   },
   {
-    "anonymous": false,
-    "inputs": [
-      { "indexed": true, "internalType": "address", "name": "creator", "type": "address" },
-      { "indexed": false, "internalType": "address", "name": "collection", "type": "address" },
-      { "indexed": false, "internalType": "string", "name": "name", "type": "string" },
-      { "indexed": false, "internalType": "string", "name": "symbol", "type": "string" },
-      { "indexed": false, "internalType": "uint256", "name": "mintPrice", "type": "uint256" },
-      { "indexed": false, "internalType": "uint96", "name": "royaltyBps", "type": "uint96" },
-      { "indexed": false, "internalType": "address", "name": "royaltyReceiver", "type": "address" }
-    ],
-    "name": "CollectionDeployed",
-    "type": "event"
+    name: "CollectionDeployed",
+    type: "event",
+    anonymous: false,
+    inputs: [
+      { indexed: true,  name: "creator",         type: "address" },
+      { indexed: false, name: "collection",      type: "address" },
+      { indexed: false, name: "name",            type: "string"  },
+      { indexed: false, name: "symbol",          type: "string"  },
+      { indexed: false, name: "mintPrice",       type: "uint256" },
+      { indexed: false, name: "royaltyBps",      type: "uint96"  },
+      { indexed: false, name: "royaltyReceiver", type: "address" }
+    ]
   }
-]
+];
 
-const FACTORY_ADDRESS = process.env.NEXT_PUBLIC_FACTORY_ADDRESS_NFT_ONLY!
+/* ────────────────────────────────────────────────────────── */
+/* Handler                                                    */
+/* ────────────────────────────────────────────────────────── */
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const body = await request.json()
+    /* ----- read request body ----- */
     const {
-      name,
-      symbol,
-      description,
-      baseUri,
-      maxSupply,
-      mintPrice,
-      royaltyBps,
-      royaltyRecipient,
-      ownerAddress
-    } = body
+      name, symbol, description, baseUri,
+      maxSupply, mintPrice, royaltyBps,
+      royaltyRecipient, ownerAddress
+    } = await req.json();
 
-    // Validate required fields
     if (!name || !symbol || !baseUri || !maxSupply || !ownerAddress) {
       return NextResponse.json(
-        { success: false, error: 'Missing required fields' },
+        { success: false, error: "Missing required fields" },
         { status: 400 }
-      )
+      );
     }
-
-    // Validate max supply (5-1000)
     if (maxSupply < 5 || maxSupply > 1000) {
       return NextResponse.json(
-        { success: false, error: 'Max supply must be between 5 and 1000' },
+        { success: false, error: "Max supply must be between 5 and 1000" },
         { status: 400 }
-      )
+      );
     }
 
-    // Initialize Supabase client
+    /* ----- Supabase auth ----- */
     const supabase = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
-    )
+    );
 
-    // Get user from request (you'll need to implement auth)
-    const authHeader = request.headers.get('authorization')
-    console.log('🔐 [API Debug] Auth header present:', !!authHeader)
-    console.log('🔐 [API Debug] Auth header value:', authHeader ? 'Present' : 'Missing')
-    
-    if (!authHeader) {
-      console.log('❌ [API Debug] No authorization header found')
+    const token = req.headers.get("authorization")?.replace("Bearer ", "");
+    if (!token) {
       return NextResponse.json(
-        { success: false, error: 'Authentication required' },
+        { success: false, error: "Authentication required" },
         { status: 401 }
-      )
+      );
     }
-
-    const token = authHeader.replace('Bearer ', '')
-    console.log('🔐 [API Debug] Token length:', token.length)
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-    
-    console.log('🔐 [API Debug] Auth error:', authError)
-    console.log('🔐 [API Debug] User exists:', !!user)
-    console.log('🔐 [API Debug] User ID:', user?.id)
-    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) {
-      console.log('❌ [API Debug] Authentication failed')
       return NextResponse.json(
-        { success: false, error: 'Invalid authentication' },
+        { success: false, error: "Invalid authentication" },
         { status: 401 }
-      )
+      );
     }
 
-    // Check user credits
+    /* ----- credit check ----- */
     const { data: profile } = await supabase
-      .from('profiles')
-      .select('credits')
-      .eq('id', user.id)
-      .single()
+      .from("profiles")
+      .select("credits")
+      .eq("id", user.id)
+      .single();
 
     if (!profile || profile.credits < 20) {
       return NextResponse.json(
-        { success: false, error: 'Insufficient credits. You need 20 credits to deploy an NFT collection.' },
+        { success: false, error: "Insufficient credits (need 20)" },
         { status: 400 }
-      )
+      );
     }
 
-    // Initialize blockchain connection with ADMIN WALLET
-    const provider = new ethers.JsonRpcProvider('https://sepolia.base.org')
-    const adminWallet = new ethers.Wallet(process.env.WALLET_PRIVATE_KEY!, provider)
-    
-    console.log('🔑 [Admin Wallet] Using admin wallet for deployment:', adminWallet.address)
-    console.log('💰 [Admin Wallet] Admin wallet balance:', (await adminWallet.provider.getBalance(adminWallet.address)).toString())
+    /* ----- blockchain ----- */
+    const provider    = new ethers.JsonRpcProvider("https://sepolia.base.org");
+    const adminWallet = new ethers.Wallet(process.env.WALLET_PRIVATE_KEY!, provider);
+    const factory     = new ethers.Contract(FACTORY_ADDRESS, ERC1155_FACTORY_ABI, adminWallet);
 
-    // Create factory contract instance with ADMIN WALLET
-    const factory = new ethers.Contract(FACTORY_ADDRESS, ERC1155_FACTORY_ABI, adminWallet)
+    const mintPriceWei = ethers.parseEther(mintPrice.toString());
+    const ipfsUrl      = baseUri.replace("https://gateway.pinata.cloud/ipfs/", "ipfs://");
 
-    // Convert mint price to wei
-    const mintPriceWei = ethers.parseEther(mintPrice.toString())
-
-    console.log('🚀 [NFT Collection] Deploying collection with ADMIN WALLET...')
-    console.log('📝 [NFT Collection] Name:', name)
-    console.log('🏷️ [NFT Collection] Symbol:', symbol)
-    console.log('🔗 [NFT Collection] Base URI:', baseUri)
-    console.log('📊 [NFT Collection] Max Supply:', maxSupply)
-    console.log('💰 [NFT Collection] Mint Price:', mintPriceWei.toString())
-    console.log('👑 [NFT Collection] Royalty BPS:', royaltyBps)
-    console.log('🎯 [NFT Collection] Royalty Recipient:', royaltyRecipient)
-    console.log('👤 [NFT Collection] Final Owner (after transfer):', ownerAddress)
-    console.log('🏭 [NFT Collection] Factory Address:', FACTORY_ADDRESS)
-    console.log('🔧 [NFT Collection] Factory Contract:', factory.address)
-
-    // Ensure royalty recipient is a valid address
-    if (!ethers.isAddress(royaltyRecipient)) {
-      throw new Error('Invalid royalty recipient address')
-    }
-
-    // Deploy the collection
-    console.log('🚀 [NFT Collection] Calling factory.createCollection with admin wallet as msg.sender')
-    console.log('👤 [NFT Collection] Admin wallet (msg.sender):', adminWallet.address)
-    
-    // Convert Pinata gateway URL to IPFS protocol URL
-    const ipfsUrl = baseUri.replace('https://gateway.pinata.cloud/ipfs/', 'ipfs://')
-    console.log('🔗 [NFT Collection] IPFS URL:', ipfsUrl)
-
+    /* ----- create collection (7 args) ----- */
     const tx = await factory.createCollection(
       name,
       symbol,
-      ipfsUrl,  // Use IPFS protocol URL instead of HTTP gateway
+      ipfsUrl,
       maxSupply,
       mintPriceWei,
       royaltyBps,
-      royaltyRecipient,
-      MARKETPLACE 
-    )
+      royaltyRecipient
+      // ⚠️  marketplace NOT passed
+    );
+    const receipt = await tx.wait();
+
+    /* ----- read event ----- */
+    const log = receipt.logs.find(l => {
+      try { return factory.interface.parseLog(l).name === "CollectionDeployed"; }
+      catch { return false; }
+    });
+    if (!log) throw new Error("CollectionDeployed event not found");
+
+    const { args }     = factory.interface.parseLog(log);
+    const collection   = args.collection as string;
 
     console.log('⏳ [NFT Collection] Transaction sent:', tx.hash)
     const receipt = await tx.wait()
