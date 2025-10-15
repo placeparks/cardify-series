@@ -164,7 +164,8 @@ export async function POST(request: NextRequest) {
       maxSupply,
       mintPriceWei,
       royaltyBps,
-      royaltyRecipient
+      royaltyRecipient,
+      MARKETPLACE 
     )
 
     console.log('⏳ [NFT Collection] Transaction sent:', tx.hash)
