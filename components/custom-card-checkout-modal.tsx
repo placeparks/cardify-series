@@ -553,10 +553,10 @@ export function CustomCardCheckoutModal({ isOpen, onClose, uploadedImage, proces
     }
   })
 
-  // Calculate effective max quantity - only limit for featured marketplace cards
+  // Calculate effective max quantity - use actual supply for marketplace cards
   const effectiveMaxQuantity = isMarketplaceListing && marketplaceListing?.featured && 
     marketplaceListing?.remaining_supply !== null && marketplaceListing?.remaining_supply !== undefined
-    ? Math.min(QUANTITY_CONFIG.MAX, marketplaceListing.remaining_supply)
+    ? marketplaceListing.remaining_supply  // Use actual remaining supply, not hardcoded MAX
     : QUANTITY_CONFIG.MAX
 
   // Inventory state management
@@ -924,10 +924,22 @@ export function CustomCardCheckoutModal({ isOpen, onClose, uploadedImage, proces
       }
     }
 
-    if (value > QUANTITY_CONFIG.MAX) {
+    if (value > effectiveMaxQuantity) {
       return {
-        value: QUANTITY_CONFIG.MAX,
-        error: `Maximum quantity is ${QUANTITY_CONFIG.MAX}`,
+        value: effectiveMaxQuantity,
+        error: `Maximum quantity is ${effectiveMaxQuantity}${effectiveMaxQuantity < QUANTITY_CONFIG.MAX ? ' (limited supply)' : ''}`,
+        isValid: false,
+      }
+    }
+
+    // Check marketplace supply limits for featured cards
+    if (isMarketplaceListing && marketplaceListing?.featured && 
+        marketplaceListing?.remaining_supply !== null && 
+        marketplaceListing?.remaining_supply !== undefined && 
+        value > marketplaceListing.remaining_supply) {
+      return {
+        value: marketplaceListing.remaining_supply,
+        error: `Only ${marketplaceListing.remaining_supply} cards available`,
         isValid: false,
       }
     }
